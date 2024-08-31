@@ -14,11 +14,11 @@ jobs:
 
       - name: Archive Project
         run: |                        
-          xcodebuild archive -project MyApp/MyApp.xcodeproj \
+          xcodebuild archive -project iosApp/iosApp.xcodeproj \
                              -scheme MainApp \
                              -sdk iphoneos \
                              -configuration Release \
-                             -archivePath MainApp.xcarchive \
+                             -archivePath iosApp.xcarchive \
                              CODE_SIGNING_ALLOWED=NO
 
       - name: Create ExportOptions.plist
@@ -33,7 +33,7 @@ jobs:
       - name: Export IPA
         run: |   
           xcodebuild -exportArchive \
-                     -archivePath MainApp.xcarchive \
+                     -archivePath iosApp.xcarchive \
                      -exportOptionsPlist ExportOptions.plist \
                      -exportPath app.ipa \
                      -allowProvisioningUpdates \
