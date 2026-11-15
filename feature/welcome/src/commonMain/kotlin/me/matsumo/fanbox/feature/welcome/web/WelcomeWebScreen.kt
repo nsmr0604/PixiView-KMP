@@ -68,11 +68,9 @@ internal fun WelcomeWebScreen(
     viewModel: WelcomeWebViewModel = koinViewModel(),
     snackExtension: ToastExtension = koinInject(),
 ) {
-    val fanboxOrigin = "https://www.fanbox.cc"
-    val fanboxUrl = "$fanboxOrigin/login"
-    val fanboxRedirectUrl = "$fanboxOrigin/creators/find"
+    val fanboxRedirectUrl = "$FANBOX_LOGIN_ORIGIN/creators/find"
 
-    val webViewState = rememberWebViewState("$fanboxUrl?return_to=$fanboxRedirectUrl")
+    val webViewState = rememberWebViewState(webLoginUrl(fanboxRedirectUrl))
     val scope = rememberCoroutineScope()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -98,7 +96,10 @@ internal fun WelcomeWebScreen(
 
     webViewState.webSettings.apply {
         isJavaScriptEnabled = true
-        customUserAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+
+        // WebView の素の UA は旧式に見え、pixiv のログインや Cloudflare のクライアント検査に
+        // 弾かれうるため、現行の Chrome モバイルを装う。バージョンはときどき現行の安定版へ更新する。
+        customUserAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36"
 
         androidWebSettings.apply {
             domStorageEnabled = true
@@ -123,10 +124,10 @@ internal fun WelcomeWebScreen(
 
     // ページを読み込むたびに Cookie を取り直し、ログインが終わっていれば確かめに行く。
     suspend fun onPageLoaded(url: String?) {
-        // FANBOX オリジンの Cookie だけを保持する。ログインは oauth.secure.pixiv.net を経由するが、
-        // そのオリジンの Cookie は FANBOX のリクエストに不要であり、保存すると以降のすべての
-        // リクエストに送信され続ける。
-        val fanboxCookies = webViewState.cookieManager.getCookies(fanboxOrigin)
+        // FANBOX オリジンの Cookie だけを保持する。ログインは pixiv のアカウント画面
+        // （accounts.pixiv.net）を経由するが、そのオリジンの Cookie は FANBOX のリクエストに不要であり、
+        // 保存すると以降のすべてのリクエストに送信され続ける。
+        val fanboxCookies = webViewState.cookieManager.getCookies(FANBOX_LOGIN_ORIGIN)
 
         currentCookies.clear()
         currentCookies.addAll(fanboxCookies)

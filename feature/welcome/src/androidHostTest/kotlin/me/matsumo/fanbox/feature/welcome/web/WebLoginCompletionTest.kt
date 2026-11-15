@@ -67,4 +67,34 @@ class WebLoginCompletionTest {
         assertEquals("www.fanbox.cc", "https://www.fanbox.cc?x=1".urlHost())
         assertNull("about:blank".urlHost())
     }
+
+    @Test
+    fun webLoginUrlEncodesReturnTo() {
+        assertEquals(
+            "https://www.fanbox.cc/login?return_to=https%3A%2F%2Fwww.fanbox.cc%2Fcreators%2Ffind",
+            webLoginUrl(redirectUrl),
+        )
+    }
+
+    @Test
+    fun webLoginUrlKeepsQueryStructureWithUnsafeReturnTo() {
+        val url = webLoginUrl("https://www.fanbox.cc/creators/find?a=1&b=2#top")
+
+        assertTrue(url.startsWith("https://www.fanbox.cc/login?return_to="))
+        assertEquals(1, url.count { it == '?' })
+    }
+
+    @Test
+    fun encodeReturnToQueryValueKeepsUnreservedCharacters() {
+        assertEquals(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~",
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~".encodeReturnToQueryValue(),
+        )
+    }
+
+    @Test
+    fun encodeReturnToQueryValueEncodesReservedAndMultiByteCharacters() {
+        assertEquals("a%26b%3Fc%23d", "a&b?c#d".encodeReturnToQueryValue())
+        assertEquals("https%3A%2F%2Fwww.fanbox.cc%2F%E3%81%82", "https://www.fanbox.cc/あ".encodeReturnToQueryValue())
+    }
 }

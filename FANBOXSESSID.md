@@ -18,6 +18,8 @@ FANBOXSESSIDとは、いわゆるpixivFANBOX内で使用されているセッシ
 ## 3. FANBOXSESSIDを取得する
 生成されたFANBOXSESSIDはCookieとしてブラウザに保存されています。これを取得する必要があります。以後の操作は先に説明したセキュリティリスクがあるため、細心の注意を払ってください。間違っても、FANBOXSESSIDが漏洩するような行為（ex: SNSに上げる, Yahoo知恵袋で質問する）は行わないでください。
 
+なお、FANBOXSESSIDには有効期限（発行から約30日）があります。期限が切れたセッションではログインできないため、その場合は2. からやり直して新しいFANBOXSESSIDを生成してください。
+
 | Cookie Editor のインストール |
 | - |
 |![pixiview-sessionid-1](https://github.com/user-attachments/assets/66b6ee14-5d44-4ebb-b845-480b2de1de1e)|
