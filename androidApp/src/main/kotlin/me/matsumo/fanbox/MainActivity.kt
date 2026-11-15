@@ -97,7 +97,10 @@ class MainActivity :
             splashScreen.setKeepOnScreenCondition { settings == null }
         }
 
-        initAdsSdk()
+        // 広告 SDK（AppLovin / AdMob mediation）の初期化を行わない。
+        // isAdsSdkInitialized が false のままになるため、全広告ビューはプレースホルダーに
+        // なり、Reward / Native 広告のロードも発生しない。
+        // initAdsSdk()
         startService(Intent(this, DownloadPostService::class.java))
         collectReviewRequest()
     }
@@ -105,7 +108,8 @@ class MainActivity :
     override fun onResume() {
         super.onResume()
 
-        refreshNativeAdInventory()
+        // 広告 SDK を初期化しないため、Native 広告の在庫更新も行わない
+        // refreshNativeAdInventory()
 
         if (stayTime == 0L) {
             lifecycleScope.launch {

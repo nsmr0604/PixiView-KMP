@@ -116,7 +116,9 @@ data class Setting(
             isAutoImagePreview = false,
             isTestUser = false,
             isDeveloperMode = false,
-            isPlusMode = false,
+            // 有料（Plus）機能を既定で ON にする。テスト配布ビルドでは正規の購入確認
+            // （RevenueCat）が行われないため、Plus 特典をすべて有効にしておく。
+            isPlusMode = true,
             isPlusTrial = false,
             isPlusSubscriptionSetToCancel = false,
             plusUnsubscribeDetectedAtMillis = null,

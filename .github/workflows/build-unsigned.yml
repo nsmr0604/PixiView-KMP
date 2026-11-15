@@ -42,6 +42,8 @@ jobs:
           # RevenueCat のキーが空のまま BillingClient が構築されると起動時にクラッシュする。
           # テスト配布 APK では課金 API への通信が失敗するだけで、呼び出し側は runCatching で握り潰す。
           PURCHASE_ANDROID_API_KEY=goog_dummy0000000000000000000000
+          # 開発モードの PIN。
+          DEVELOPER_PASSWORD=0000
           EOF
 
       # プラットフォーム 37.0 の自動インストールに必要な現行ライセンスのハッシュを補う。
@@ -126,6 +128,8 @@ jobs:
         run: |
           cat > local.properties <<'EOF'
           PURCHASE_IOS_API_KEY=appl_dummy0000000000000000000000
+          # 開発モードの PIN。
+          DEVELOPER_PASSWORD=0000
           EOF
 
       # secret.plist は実キーを含むため gitignore されているが、Xcode プロジェクトが
