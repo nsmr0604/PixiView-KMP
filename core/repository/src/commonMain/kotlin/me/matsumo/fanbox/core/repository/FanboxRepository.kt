@@ -4,335 +4,617 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
-import com.fleeksoft.ksoup.Ksoup
 import com.multiplatform.webview.cookie.WebViewCookieManager
 import io.github.aakira.napier.Napier
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.request.url
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpMessageBuilder
-import io.ktor.util.InternalAPI
+import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.minus
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.plus
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import me.matsumo.fanbox.core.common.PixiViewConfig
+import me.matsumo.fanbox.core.common.util.recordException
+import me.matsumo.fanbox.core.common.util.suspendRunCatching
 import me.matsumo.fanbox.core.datastore.BlockDataStore
 import me.matsumo.fanbox.core.datastore.BookmarkDataStore
-import me.matsumo.fanbox.core.datastore.FanboxCookieDataStore
-import me.matsumo.fanbox.core.datastore.PixiViewDataStore
-import me.matsumo.fanbox.core.model.FanboxTag
-import me.matsumo.fanbox.core.model.PageCursorInfo
-import me.matsumo.fanbox.core.model.PageNumberInfo
-import me.matsumo.fanbox.core.model.PageOffsetInfo
-import me.matsumo.fanbox.core.model.fanbox.FanboxBell
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorDetail
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorPlan
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorPlanDetail
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorTag
-import me.matsumo.fanbox.core.model.fanbox.FanboxCursor
-import me.matsumo.fanbox.core.model.fanbox.FanboxMetaData
-import me.matsumo.fanbox.core.model.fanbox.FanboxNewsLetter
-import me.matsumo.fanbox.core.model.fanbox.FanboxPaidRecord
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxBellItemsEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorItemsEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorPlanEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorPlansEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorPostItemsEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorPostsPaginateEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorSearchEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxCreatorTagsEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxMetaDataEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxNewsLettersEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxPaidRecordEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxPostCommentItemsEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxPostDetailEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxPostItemsEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxPostSearchEntity
-import me.matsumo.fanbox.core.model.fanbox.entity.FanboxTagsEntity
-import me.matsumo.fanbox.core.model.fanbox.id.CommentId
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import me.matsumo.fanbox.core.datastore.OldCookieDataStore
+import me.matsumo.fanbox.core.datastore.SettingDataStore
+import me.matsumo.fanbox.core.datastore.cookie.MigratingFanboxCookieStorage
+import me.matsumo.fanbox.core.model.FanboxErrorKind
+import me.matsumo.fanbox.core.model.GuestSource
+import me.matsumo.fanbox.core.model.LoginState
+import me.matsumo.fanbox.core.model.fanbox.Bell
+import me.matsumo.fanbox.core.model.fanbox.Comment
+import me.matsumo.fanbox.core.model.fanbox.CommentId
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.CreatorPlan
+import me.matsumo.fanbox.core.model.fanbox.CreatorPlanDetail
+import me.matsumo.fanbox.core.model.fanbox.Cursor
+import me.matsumo.fanbox.core.model.fanbox.MetaData
+import me.matsumo.fanbox.core.model.fanbox.NewsLetter
+import me.matsumo.fanbox.core.model.fanbox.PageCursorInfo
+import me.matsumo.fanbox.core.model.fanbox.PageNumberInfo
+import me.matsumo.fanbox.core.model.fanbox.PageOffsetInfo
+import me.matsumo.fanbox.core.model.fanbox.PaidRecord
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.model.fanbox.Tag
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.model.toLoginState
+import me.matsumo.fanbox.core.repository.mapper.toBell
+import me.matsumo.fanbox.core.repository.mapper.toComment
+import me.matsumo.fanbox.core.repository.mapper.toCreatorDetail
+import me.matsumo.fanbox.core.repository.mapper.toCreatorId
+import me.matsumo.fanbox.core.repository.mapper.toCreatorPlan
+import me.matsumo.fanbox.core.repository.mapper.toCreatorPlanDetail
+import me.matsumo.fanbox.core.repository.mapper.toCursor
+import me.matsumo.fanbox.core.repository.mapper.toFanboxCommentId
+import me.matsumo.fanbox.core.repository.mapper.toFanboxCreatorId
+import me.matsumo.fanbox.core.repository.mapper.toFanboxCursor
+import me.matsumo.fanbox.core.repository.mapper.toFanboxPost
+import me.matsumo.fanbox.core.repository.mapper.toFanboxPostId
+import me.matsumo.fanbox.core.repository.mapper.toFanboxUserId
+import me.matsumo.fanbox.core.repository.mapper.toMetaData
+import me.matsumo.fanbox.core.repository.mapper.toNewsLetter
+import me.matsumo.fanbox.core.repository.mapper.toPageCursorInfo
+import me.matsumo.fanbox.core.repository.mapper.toPageNumberInfo
+import me.matsumo.fanbox.core.repository.mapper.toPageOffsetInfo
+import me.matsumo.fanbox.core.repository.mapper.toPaidRecord
+import me.matsumo.fanbox.core.repository.mapper.toPost
+import me.matsumo.fanbox.core.repository.mapper.toPostDetail
+import me.matsumo.fanbox.core.repository.mapper.toPostId
+import me.matsumo.fanbox.core.repository.mapper.toTag
 import me.matsumo.fanbox.core.repository.paging.CreatorPostsPagingSource
 import me.matsumo.fanbox.core.repository.paging.HomePostsPagingSource
 import me.matsumo.fanbox.core.repository.paging.SearchCreatorsPagingSource
 import me.matsumo.fanbox.core.repository.paging.SearchPostsPagingSource
 import me.matsumo.fanbox.core.repository.paging.SupportedPostsPagingSource
-import me.matsumo.fanbox.core.repository.utils.parse
-import me.matsumo.fanbox.core.repository.utils.requireSuccess
-import me.matsumo.fanbox.core.repository.utils.translate
+import me.matsumo.fankt.fanbox.Fanbox
+import me.matsumo.fankt.fanbox.FanboxCookieRecord
+import me.matsumo.fankt.fanbox.FanboxException
+import me.matsumo.fankt.fanbox.FanboxListItemSchemaMismatch
+import me.matsumo.fankt.fanbox.FanboxLogLevel
+import me.matsumo.fankt.fanbox.InMemoryFanboxTokenStore
 import org.koin.core.component.KoinComponent
 import kotlin.random.Random
 
+// 同じ認証セッションを使う FANBOX API の窓口として、endpoint ごとの操作を1つの契約にまとめる。
+@Suppress("TooManyFunctions")
 interface FanboxRepository {
-    val metaData: StateFlow<FanboxMetaData>
-    val bookmarkedPosts: SharedFlow<List<PostId>>
+    val bookmarkedPostsIds: SharedFlow<List<PostId>>
     val blockedCreators: SharedFlow<Set<CreatorId>>
-    val cookie: Flow<String>
+    val sessionId: Flow<String?>
+    val csrfToken: Flow<String?>
     val logoutTrigger: Flow<Long>
+    val sessionInvalidatedTrigger: Flow<Long>
+
+    /** FANBOX の request と response を処理している guest の出所。 */
+    val guestSource: StateFlow<GuestSource>
+
+    /**
+     * クリエイターの userId ごとに、最後に分かったフォロー状態。
+     *
+     * FANBOX からクリエイターを取得したときと、フォロー・アンフォローしたときに更新し、[clearSession] で空にする。
+     * 画面ごとに持つ [CreatorDetail.isFollowed] は取得した時点の値のため、表示にはこちらを優先する。
+     */
+    val followStates: StateFlow<ImmutableMap<UserId, Boolean>>
+
+    /**
+     * 配信中の guest を、CDN のキャッシュを通さずに読み込み直す。
+     *
+     * 配信先はその時点の developer mode で選び直す。読み込み直す前の guest で実行中の request は失敗しうる。
+     */
+    suspend fun reloadGuest()
 
     suspend fun logout()
+    suspend fun clearSession()
+    suspend fun setSessionId(sessionId: String)
 
-    suspend fun isCookieValid(): Boolean
-    suspend fun updateCookie(cookie: String)
+    /**
+     * Room 導入より前の保存先に残っているセッションを取り込む。取り込めた場合は true を返す。
+     *
+     * 読み出しから取り込み元の削除までをログアウトと同じ順序制御の下で行うため、
+     * 取り込みの途中でログアウトが挟まってもセッションは復活しない。
+     */
+    suspend fun importPreRoomSession(): Boolean
+
+    suspend fun setCookies(cookies: List<FanboxCookieRecord>)
     suspend fun updateCsrfToken()
+    suspend fun getMetadata(): MetaData
 
-    suspend fun getHomePosts(cursor: FanboxCursor?, loadSize: Int = cursor?.limit ?: 10): PageCursorInfo<FanboxPost>
-    suspend fun getSupportedPosts(cursor: FanboxCursor?, loadSize: Int = cursor?.limit ?: 10): PageCursorInfo<FanboxPost>
-    suspend fun getCreatorPosts(creatorId: CreatorId, currentCursor: FanboxCursor, nextCursor: FanboxCursor?, loadSize: Int = currentCursor?.limit ?: 10): PageCursorInfo<FanboxPost>
-    suspend fun getCreatorPostsPaginate(creatorId: CreatorId): List<FanboxCursor>
-    suspend fun getPost(postId: PostId): FanboxPostDetail
-    suspend fun getPostCached(postId: PostId): FanboxPostDetail
-    suspend fun getPostComment(postId: PostId, offset: Int = 0): PageOffsetInfo<FanboxPostDetail.Comment.CommentItem>
-    suspend fun getPostFromQuery(query: String, creatorId: CreatorId? = null, page: Int = 0): PageNumberInfo<FanboxPost>
-    suspend fun getCreatorFromQuery(query: String, page: Int = 0): PageNumberInfo<FanboxCreatorDetail>
-    suspend fun getTagFromQuery(query: String): List<FanboxTag>
+    /**
+     * 保存したセッションで FANBOX にログインしているかを確かめ、CSRF token を取り直す。
+     *
+     * FANBOX がセッションを無効と答えた場合だけ [LoginState.LoggedOut] を返す。メンテナンスや通信の失敗など、
+     * 確かめられなかった場合は [LoginState.Unverified] を返し、保存したセッションは残す。
+     */
+    suspend fun checkLoginState(): LoginState
 
-    suspend fun getHomePostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>>
-    suspend fun getHomePostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>>
-    suspend fun getSupportedPostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>>
-    suspend fun getSupportedPostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>>
-    suspend fun getCreatorPostsPager(creatorId: CreatorId, loadSize: Int): Flow<PagingData<FanboxPost>>
-    suspend fun getCreatorPostsPagerCache(): Flow<PagingData<FanboxPost>>?
-    suspend fun getPostsFromQueryPager(query: String, creatorId: CreatorId? = null): Flow<PagingData<FanboxPost>>
-    suspend fun getPostsFromQueryPagerCache(): Flow<PagingData<FanboxPost>>?
-    suspend fun getCreatorsFromQueryPager(query: String): Flow<PagingData<FanboxCreatorDetail>>
+    suspend fun getHomePosts(
+        cursor: Cursor?,
+        loadSize: Int = cursor?.limit ?: 10,
+    ): PageCursorInfo<Post>
 
-    suspend fun getFollowingCreators(): List<FanboxCreatorDetail>
-    suspend fun getFollowingPixivCreators(): List<FanboxCreatorDetail>
-    suspend fun getRecommendedCreators(): List<FanboxCreatorDetail>
+    suspend fun getSupportedPosts(
+        cursor: Cursor?,
+        loadSize: Int = cursor?.limit ?: 10,
+    ): PageCursorInfo<Post>
 
-    suspend fun getCreator(creatorId: CreatorId): FanboxCreatorDetail
-    suspend fun getCreatorCached(creatorId: CreatorId): FanboxCreatorDetail
-    suspend fun getCreatorTags(creatorId: CreatorId): List<FanboxCreatorTag>
+    suspend fun getCreatorPosts(
+        creatorId: CreatorId,
+        currentCursor: Cursor,
+        nextCursor: Cursor?,
+        loadSize: Int = currentCursor.limit ?: 10,
+    ): PageCursorInfo<Post>
 
-    suspend fun getSupportedPlans(): List<FanboxCreatorPlan>
-    suspend fun getCreatorPlans(creatorId: CreatorId): List<FanboxCreatorPlan>
-    suspend fun getCreatorPlan(creatorId: CreatorId): FanboxCreatorPlanDetail
+    suspend fun getCreatorPostsPagination(creatorId: CreatorId): List<Cursor>
+    suspend fun getPostDetail(postId: PostId): PostDetail
+    suspend fun getPostDetailCached(postId: PostId): PostDetail
+    suspend fun getPostComment(
+        postId: PostId,
+        offset: Int = 0,
+    ): PageOffsetInfo<Comment>
 
-    suspend fun getPaidRecords(): List<FanboxPaidRecord>
-    suspend fun getUnpaidRecords(): List<FanboxPaidRecord>
+    suspend fun getPostFromQuery(
+        query: String,
+        creatorId: CreatorId? = null,
+        page: Int = 0,
+    ): PageNumberInfo<Post>
 
-    suspend fun getNewsLetters(): List<FanboxNewsLetter>
-    suspend fun getBells(page: Int = 0): PageNumberInfo<FanboxBell>
+    suspend fun getCreatorFromQuery(
+        query: String,
+        page: Int = 0,
+    ): PageNumberInfo<CreatorDetail>
+
+    suspend fun getTagFromQuery(query: String): List<Tag>
+
+    fun getHomePostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>>
+
+    fun getHomePostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>>
+
+    fun getSupportedPostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>>
+
+    fun getSupportedPostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>>
+
+    // Flow を返す前に、取得開始時点のページカーソルをサーバーから確定する。
+    @Suppress("SuspendFunWithFlowReturnType")
+    suspend fun getCreatorPostsPager(creatorId: CreatorId, loadSize: Int): Flow<PagingData<Post>>
+
+    fun getCreatorPostsPagerCache(): Flow<PagingData<Post>>?
+    fun getPostsFromQueryPager(
+        query: String,
+        creatorId: CreatorId? = null,
+    ): Flow<PagingData<Post>>
+
+    fun getPostsFromQueryPagerCache(): Flow<PagingData<Post>>?
+    fun getCreatorsFromQueryPager(query: String): Flow<PagingData<CreatorDetail>>
+
+    suspend fun getFollowingCreators(): List<CreatorDetail>
+    suspend fun getFollowingPixivCreators(): List<CreatorDetail>
+    suspend fun getRecommendedCreators(): List<CreatorDetail>
+
+    suspend fun getCreatorDetail(creatorId: CreatorId): CreatorDetail
+    suspend fun getCreatorDetailCached(creatorId: CreatorId): CreatorDetail
+    suspend fun getCreatorTags(creatorId: CreatorId): List<Tag>
+
+    suspend fun getSupportedPlans(): List<CreatorPlan>
+    suspend fun getCreatorPlans(creatorId: CreatorId): List<CreatorPlan>
+    suspend fun getCreatorPlan(creatorId: CreatorId): CreatorPlanDetail
+
+    suspend fun getPaidRecords(): List<PaidRecord>
+    suspend fun getUnpaidRecords(): List<PaidRecord>
+
+    suspend fun getNewsLetters(): List<NewsLetter>
+    suspend fun getBells(
+        page: Int = 0,
+    ): PageNumberInfo<Bell>
 
     suspend fun likePost(postId: PostId)
     suspend fun likeComment(commentId: CommentId)
 
-    suspend fun addComment(postId: PostId, comment: String, rootCommentId: CommentId? = null, parentCommentId: CommentId? = null)
+    suspend fun addComment(
+        postId: PostId,
+        comment: String,
+        rootCommentId: CommentId? = null,
+        parentCommentId: CommentId? = null,
+    )
+
     suspend fun deleteComment(commentId: CommentId)
 
-    suspend fun followCreator(creatorUserId: String)
-    suspend fun unfollowCreator(creatorUserId: String)
+    suspend fun followCreator(creatorUserId: UserId)
+    suspend fun unfollowCreator(creatorUserId: UserId)
 
     suspend fun blockCreator(creatorId: CreatorId)
     suspend fun unblockCreator(creatorId: CreatorId)
 
-    suspend fun getBookmarkedPosts(): List<FanboxPost>
-    suspend fun bookmarkPost(post: FanboxPost)
-    suspend fun unbookmarkPost(post: FanboxPost)
+    suspend fun getBookmarkedPosts(): List<Post>
+    suspend fun bookmarkPost(post: Post)
+    suspend fun unbookmarkPost(post: Post)
 
-    suspend fun download(url: String): HttpResponse
+    suspend fun setCreatorAllPostsCache(creatorId: CreatorId, posts: List<Post>)
+    suspend fun getCreatorAllPostsCache(creatorId: CreatorId): List<Post>?
+
+    /**
+     * ダウンロードした内容を [onChunk] へ順に渡す。
+     *
+     * 各チャンクは独立した値で、次の読み出しは [onChunk] の完了を待つ。[onChunk] が投げた例外と
+     * 呼び出し側のキャンセルはそのまま伝播し、いずれの場合もレスポンスは解放される。ファイルへ
+     * 書き出す場合は一時的な保存先へ書き、この関数が正常に終わってから本来の位置へ移すこと。
+     */
+    suspend fun download(
+        url: String,
+        onDownload: (Float) -> Unit,
+        onChunk: suspend (ByteArray) -> Unit,
+    )
 }
 
+// 別々のデータ保存先と認証・通信設定を DI で受け取り、セッションを共有する。
+@OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LongParameterList")
 class FanboxRepositoryImpl(
-    private val client: HttpClient,
-    private val formatter: Json,
-    private val fanboxCookieDataStore: FanboxCookieDataStore,
     private val bookmarkDataStore: BookmarkDataStore,
     private val blockDataStore: BlockDataStore,
-    private val userDataStore: PixiViewDataStore,
+    private val userDataStore: SettingDataStore,
+    private val oldCookieDataStore: OldCookieDataStore,
     private val ioDispatcher: CoroutineDispatcher,
-) : FanboxRepository, KoinComponent {
+    private val cookieStorage: MigratingFanboxCookieStorage,
+    private val guestCacheFactory: GuestCacheFactory,
+    private val pixiViewConfig: PixiViewConfig,
+) : FanboxRepository,
+    KoinComponent {
 
     private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
+    private val guestEventReporter = GuestEventReporter(scope)
 
-    private val creatorCache = mutableMapOf<CreatorId, FanboxCreatorDetail>()
-    private val postCache = mutableMapOf<PostId, FanboxPostDetail>()
-    private var homePostsPager: Flow<PagingData<FanboxPost>>? = null
-    private var supportedPostsPager: Flow<PagingData<FanboxPost>>? = null
-    private var creatorPostsPager: Flow<PagingData<FanboxPost>>? = null
-    private var searchPostsPager: Flow<PagingData<FanboxPost>>? = null
+    // guest を読み込み直すときに Fanbox を作り直しても CSRF token が失われないよう、生成した Fanbox のあいだで共有する。
+    private val tokenStore = InMemoryFanboxTokenStore()
 
-    private val _metaData = MutableStateFlow(FanboxMetaData.dummy())
-    private val _logoutTrigger = Channel<Long>()
+    // guest は Fanbox の生成時にロードされるため、読み込み直すときは Fanbox ごと差し替える。
+    private val fanboxState = MutableStateFlow(newFanbox(loadGuestChannel(userDataStore)))
+    private val fanbox: Fanbox
+        get() = fanboxState.value.fanbox
 
-    override val metaData: StateFlow<FanboxMetaData> = _metaData.asStateFlow()
-    override val cookie: Flow<String> = fanboxCookieDataStore.data
+    private val creatorCache = mutableMapOf<CreatorId, CreatorDetail>()
+    private val _followStates = MutableStateFlow<PersistentMap<UserId, Boolean>>(persistentMapOf())
+    private val followChangeMutex = Mutex()
+    private val postCache = mutableMapOf<PostId, PostDetail>()
+    private val creatorAllPostsCache = mutableMapOf<CreatorId, List<Post>>()
+    private var homePostsPager: Flow<PagingData<Post>>? = null
+    private var supportedPostsPager: Flow<PagingData<Post>>? = null
+    private var creatorPostsPager: Flow<PagingData<Post>>? = null
+    private var searchPostsPager: Flow<PagingData<Post>>? = null
+
+    // ログアウトの完了を待つ呼び出し元を止めないため、受け手がいなくても送信が進む容量を持たせる。
+    private val _logoutTrigger = Channel<Long>(Channel.CONFLATED)
+    private val _sessionInvalidatedTrigger = Channel<Long>(Channel.CONFLATED)
+
+    override val sessionId: Flow<String?> = fanboxState
+        .flatMapLatest { it.fanbox.cookies }
+        .map { list -> list.find { it.name == FANBOX_SESSION_ID_NAME }?.value }
+    override val csrfToken: Flow<String?> = fanboxState.flatMapLatest { it.fanbox.csrfToken }
     override val logoutTrigger: Flow<Long> = _logoutTrigger.receiveAsFlow()
+    override val sessionInvalidatedTrigger: Flow<Long> = _sessionInvalidatedTrigger.receiveAsFlow()
+    override val guestSource: StateFlow<GuestSource> = guestEventReporter.source
+    override val followStates: StateFlow<ImmutableMap<UserId, Boolean>> = _followStates.asStateFlow()
 
-    override val bookmarkedPosts: SharedFlow<List<PostId>> = bookmarkDataStore.data
+    override val bookmarkedPostsIds: SharedFlow<List<PostId>> = bookmarkDataStore.data
+        .map { ids -> ids.map { it.toPostId() } }
+        .shareIn(scope, SharingStarted.Eagerly, replay = 1)
+
     override val blockedCreators: SharedFlow<Set<CreatorId>> = blockDataStore.data
+        .map { ids -> ids.map { it.toCreatorId() }.toSet() }
+        .shareIn(scope, SharingStarted.Eagerly, replay = 1)
 
-    override suspend fun logout() {
-        CoroutineScope(ioDispatcher).launch {
+    init {
+        // 配信先は Fanbox の生成時に決まるため、developer mode を切り替えたら選び直した配信先から読み込み直す
+        scope.launch {
+            userDataStore.storedSetting
+                .map { guestChannel(it.isDeveloperMode) }
+                .distinctUntilChanged()
+                .filter { it != fanboxState.value.channel }
+                .collect { replaceFanbox(it) }
+        }
+    }
+
+    override suspend fun reloadGuest() = replaceFanbox(loadGuestChannel(userDataStore))
+
+    private suspend fun replaceFanbox(channel: GuestChannel) = withContext(ioDispatcher) {
+        guestEventReporter.markLoading()
+
+        val reloaded = newFanbox(channel = channel, bypassesCdnCache = true)
+        val previous = fanboxState.getAndUpdate { reloaded }
+
+        previous.fanbox.close()
+    }
+
+    // fankt は NONE 以外の logLevel でスキーマ不一致ごとに応答本文の断片を出力する。断片には
+    // FANBOX と利用者のデータが残るため、リリースビルドでは NONE にして出力経路ごと閉じる。
+    private fun newFanbox(channel: GuestChannel, bypassesCdnCache: Boolean = false) = ChanneledFanbox(
+        channel = channel,
+        fanbox = createFanbox(
+            channel = channel,
+            logLevel = if (pixiViewConfig.isDebug) FanboxLogLevel.INFO else FanboxLogLevel.NONE,
+            ioDispatcher = ioDispatcher,
+            cookieStorage = cookieStorage,
+            tokenStore = tokenStore,
+            guestCacheFactory = guestCacheFactory,
+            guestEventListener = guestEventReporter::report,
+            bypassesCdnCache = bypassesCdnCache,
+        ),
+    )
+
+    /**
+     * ログアウトする。
+     *
+     * 保存先から資格情報を消し終えてから完了する。以前は空の `FANBOXSESSID` を保存していたが、
+     * それではセッションが残ったままになる。
+     *
+     * WebView の Cookie 削除に失敗しても、保存先の削除は行う。WebView 側の後始末より、
+     * 資格情報を消し残さないことを優先する。
+     *
+     * Room 導入より前の保存先も [cookieStorage] が消す。ログアウト中の印が立っている間に
+     * 消すため、途中でプロセスが終わっても取り込み元だけが残ることはない。
+     *
+     * 呼び出し元が取り消されても最後まで行う。途中で止まると資格情報が消し残り、
+     * どこかの保存先から復活するため。
+     *
+     * 資格情報に加えて、ブックマークとブロックの設定も消す。
+     */
+    override suspend fun logout() = withContext(ioDispatcher + NonCancellable) {
+        clearSession()
+
+        bookmarkDataStore.clear()
+        blockDataStore.clear()
+        userDataStore.setFollowTabDefaultHome(false)
+
+        _logoutTrigger.send(Random.nextLong())
+    }
+
+    /**
+     * 資格情報と、アカウントごとに変わるフォロー状態を消す。ブックマークとブロックの設定は残す。
+     *
+     * ログインし直す前に古いセッションを捨てるために使う。ログインし直す利用者の多くは、起動時の確認に
+     * 失敗しただけで、同じアカウントでログインし直す。そのたびに手元の設定を消さないため。
+     *
+     * [logout] と同じく、WebView の Cookie 削除に失敗しても保存先の削除は行い、呼び出し元が取り消されても
+     * 最後まで行う。
+     */
+    override suspend fun clearSession() = withContext(ioDispatcher + NonCancellable) {
+        runCatching {
             withContext(Dispatchers.Main) { WebViewCookieManager().removeAllCookies() }
-
-            fanboxCookieDataStore.save("")
-            bookmarkDataStore.clear()
-            blockDataStore.clear()
-            userDataStore.setTestUser(false)
-            userDataStore.setFollowTabDefaultHome(false)
-
-            _logoutTrigger.send(Random.nextLong())
+        }.onFailure { failure ->
+            Napier.w(failure) { "Failed to remove the WebView Cookies while clearing the session." }
         }
+
+        cookieStorage.logout()
+
+        userDataStore.setTestUser(false)
+        _followStates.value = persistentMapOf()
     }
 
-    override suspend fun isCookieValid(): Boolean {
-        return !fanboxCookieDataStore.data.firstOrNull().isNullOrBlank()
+    override suspend fun setSessionId(sessionId: String) {
+        resetUnreadableSession()
+        fanbox.setFanboxSessionId(sessionId)
     }
 
-    override suspend fun updateCookie(cookie: String) {
-        fanboxCookieDataStore.save(cookie)
-    }
-
-    override suspend fun updateCsrfToken() = withContext(ioDispatcher) {
-        val response = client.get("https://www.fanbox.cc/")
-        val html = response.bodyAsText()
-        val doc = Ksoup.parse(html)
-        val meta = doc.select("meta[name=metadata]").first()?.attr("content")
-        val data = formatter.decodeFromString(FanboxMetaDataEntity.serializer(), meta!!).translate()
-
-        Napier.d { "updateCsrfToken: ${data.csrfToken}" }
-
-        _metaData.emit(data)
-    }
-
-    override suspend fun getHomePosts(cursor: FanboxCursor?, loadSize: Int): PageCursorInfo<FanboxPost> = withContext(ioDispatcher) {
-        buildMap {
-            put("limit", loadSize.toString())
-
-            if (cursor != null) {
-                put("maxPublishedDatetime", cursor.maxPublishedDatetime)
-                put("maxId", cursor.maxId)
-            }
-        }.let {
-            get("post.listHome", it).parse<FanboxPostItemsEntity>()!!.translate(bookmarkedPosts.first())
-        }
-    }
-
-    override suspend fun getSupportedPosts(cursor: FanboxCursor?, loadSize: Int): PageCursorInfo<FanboxPost> = withContext(ioDispatcher) {
-        buildMap {
-            put("limit", loadSize.toString())
-
-            if (cursor != null) {
-                put("maxPublishedDatetime", cursor.maxPublishedDatetime)
-                put("maxId", cursor.maxId)
-            }
-        }.let {
-            get("post.listSupporting", it).parse<FanboxPostItemsEntity>()!!.translate(bookmarkedPosts.first())
-        }
-    }
-
-    override suspend fun getCreatorPosts(creatorId: CreatorId, currentCursor: FanboxCursor, nextCursor: FanboxCursor?, loadSize: Int): PageCursorInfo<FanboxPost> =
-        withContext(ioDispatcher) {
-            buildMap {
-                put("creatorId", creatorId.value)
-                put("limit", loadSize.toString())
-                put("maxPublishedDatetime", currentCursor.maxPublishedDatetime)
-                put("maxId", currentCursor.maxId)
-            }.let {
-                get("post.listCreator", it).parse<FanboxCreatorPostItemsEntity>()!!.translate(bookmarkedPosts.first(), nextCursor)
+    override suspend fun importPreRoomSession(): Boolean = withContext(ioDispatcher) {
+        cookieStorage.importPreRoomSession {
+            oldCookieDataStore.getSessionId()?.let { sessionId ->
+                // fankt の `setFanboxSessionId` が保存する形と同じにする。
+                FanboxCookieRecord(
+                    domain = ".fanbox.cc",
+                    path = "/",
+                    name = FANBOX_SESSION_ID_NAME,
+                    value = sessionId,
+                    expiresAtEpochMilliseconds = null,
+                    secure = true,
+                    hostOnly = false,
+                )
             }
         }
+    }
 
-    override suspend fun getPostFromQuery(query: String, creatorId: CreatorId?, page: Int): PageNumberInfo<FanboxPost> = withContext(ioDispatcher) {
-        buildMap {
-            put("tag", query)
-            put("page", page.toString())
+    override suspend fun setCookies(cookies: List<FanboxCookieRecord>) {
+        resetUnreadableSession()
+        fanbox.setCookies(cookies, reset = true)
+    }
 
-            if (creatorId != null) {
-                put("creatorId", creatorId.value)
-            }
-        }.let {
-            get("post.listTagged", it).parse<FanboxPostSearchEntity>()!!.translate(bookmarkedPosts.first())
+    override suspend fun updateCsrfToken() {
+        fanbox.updateCsrfToken()
+    }
+
+    override suspend fun checkLoginState(): LoginState {
+        if (cookieStorage.isStoredSessionUnreadable()) return LoginState.SessionUnreadable
+        if (sessionId.first().isNullOrBlank()) return LoginState.LoggedOut
+
+        return suspendRunCatching { fetchLoginState() }.getOrElse { failure ->
+            failure.toLoginState().also { reportUnverifiedLogin(it, failure) }
         }
     }
 
-    override suspend fun getCreatorPostsPaginate(creatorId: CreatorId): List<FanboxCursor> = withContext(ioDispatcher) {
-        get("post.paginateCreator", mapOf("creatorId" to creatorId.value)).parse<FanboxCreatorPostsPaginateEntity>()!!.translate()
+    // homepage の metadata は、ログインしていなくても userId が null のまま返る。ログインの判定はこの userId で行う。
+    private suspend fun fetchLoginState(): LoginState {
+        val metaData = getMetadata()
+
+        if (metaData.context?.user?.userId == null) return LoginState.LoggedOut
+
+        updateCsrfToken()
+
+        return LoginState.LoggedIn(metaData)
     }
 
-    override suspend fun getCreatorFromQuery(query: String, page: Int): PageNumberInfo<FanboxCreatorDetail> = withContext(ioDispatcher) {
-        get("creator.search", mapOf("q" to query, "page" to page.toString())).parse<FanboxCreatorSearchEntity>()!!.translate()
+    /**
+     * 確かめられなかった理由をクラッシュレポート基盤へ記録する。本文と認証情報は含めない。
+     *
+     * 通信できなかっただけの場合は記録しない。利用者の回線の状態であり、起動のたびに記録されて他の理由が埋もれるため。
+     */
+    private fun reportUnverifiedLogin(loginState: LoginState, failure: Throwable) {
+        if (loginState !is LoginState.Unverified) return
+        if (loginState.errorKind == FanboxErrorKind.Network) return
+
+        val endpoint = (failure as? FanboxException)?.endpoint
+        recordException(IllegalStateException("Login check failed. kind=${loginState.errorKind}, endpoint=$endpoint"))
     }
 
-    override suspend fun getTagFromQuery(query: String): List<FanboxTag> = withContext(ioDispatcher) {
-        get("tag.search", mapOf("q" to query)).parse<FanboxTagsEntity>()!!.translate()
+    /**
+     * 保存したセッションが壊れていたら、保存先を初期化する。
+     *
+     * 壊れた状態のままでは新しいセッションを保存できない。利用者がログインし直すときは、
+     * 読めない古いセッションを捨ててよいため、保存の前に初期化する。
+     */
+    private suspend fun resetUnreadableSession() {
+        if (cookieStorage.isStoredSessionUnreadable()) cookieStorage.logout()
     }
 
-    override suspend fun getPost(postId: PostId): FanboxPostDetail = withContext(ioDispatcher) {
-        get("post.info", mapOf("postId" to postId.value)).parse<FanboxPostDetailEntity>()!!.translate(bookmarkedPosts.first()).also {
-            postCache[postId] = it
-        }
-    }
-
-    override suspend fun getPostCached(postId: PostId): FanboxPostDetail = withContext(ioDispatcher) {
-        postCache.getOrPut(postId) { getPost(postId) }
-    }
-
-    override suspend fun getPostComment(postId: PostId, offset: Int): PageOffsetInfo<FanboxPostDetail.Comment.CommentItem> =
-        withContext(ioDispatcher) {
-            get("post.listComments", mapOf("postId" to postId.value, "offset" to offset.toString(), "limit" to "10")).parse<FanboxPostCommentItemsEntity>()!!.translate()
-        }
-
-    override suspend fun getHomePostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>> {
-        return Pager(
-            config = PagingConfig(pageSize = loadSize),
-            initialKey = null,
-            pagingSourceFactory = {
-                HomePostsPagingSource(this, isHideRestricted)
-            },
+    /**
+     * fankt の list 応答でスキップされた項目をクラッシュレポート基盤へ記録する。
+     *
+     * [FanboxListItemSchemaMismatch] は endpoint と indexPath のみを持つため、
+     * 送信内容に FANBOX や利用者のデータは含まれない。
+     * ログ出力は fankt が同じ内容を Napier へ出すため行わない。
+     */
+    private fun recordSchemaMismatch(mismatch: FanboxListItemSchemaMismatch) {
+        recordException(
+            IllegalStateException(
+                "FANBOX list item schema mismatch. endpoint=${mismatch.endpoint}, indexPath=${mismatch.indexPath}",
+            ),
         )
-            .flow
-            .cachedIn(scope)
-            .also { homePostsPager = it }
     }
 
-    override suspend fun getHomePostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>> {
-        return homePostsPager ?: getHomePostsPager(loadSize, isHideRestricted)
+    /**
+     * FANBOX API の認証切れを通知し、呼び出し元へ例外を再送出する。
+     *
+     * [logout] とセッション設定系は包まない。ログアウト中の 401 で [logoutTrigger] と二重に通知したり、
+     * セッションを設定する処理を認証済み API として扱ったりしないため。
+     */
+    private suspend fun <T> withSessionCheck(block: suspend () -> T): T = try {
+        block()
+    } catch (exception: FanboxException.Unauthorized) {
+        _sessionInvalidatedTrigger.send(Random.nextLong())
+        throw exception
     }
 
-    override suspend fun getSupportedPostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>> {
-        return Pager(
-            config = PagingConfig(pageSize = loadSize),
-            initialKey = null,
-            pagingSourceFactory = {
-                SupportedPostsPagingSource(this, isHideRestricted)
-            },
-        )
-            .flow
-            .cachedIn(scope)
-            .also { supportedPostsPager = it }
+    override suspend fun getMetadata(): MetaData = withSessionCheck {
+        fanbox.getMetadata().toMetaData()
     }
 
-    override suspend fun getSupportedPostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<FanboxPost>> {
-        return supportedPostsPager ?: getSupportedPostsPager(loadSize, isHideRestricted)
+    override suspend fun getHomePosts(cursor: Cursor?, loadSize: Int): PageCursorInfo<Post> = withSessionCheck {
+        fanbox.getHomePosts(cursor?.toFanboxCursor(), ::recordSchemaMismatch).toPageCursorInfo { it.toPost() }
     }
 
-    override suspend fun getCreatorPostsPager(creatorId: CreatorId, loadSize: Int): Flow<PagingData<FanboxPost>> {
-        val cursors = getCreatorPostsPaginate(creatorId)
+    override suspend fun getSupportedPosts(cursor: Cursor?, loadSize: Int): PageCursorInfo<Post> = withSessionCheck {
+        fanbox.getSupportedPosts(cursor?.toFanboxCursor(), ::recordSchemaMismatch).toPageCursorInfo { it.toPost() }
+    }
+
+    override suspend fun getCreatorPosts(
+        creatorId: CreatorId,
+        currentCursor: Cursor,
+        nextCursor: Cursor?,
+        loadSize: Int,
+    ): PageCursorInfo<Post> = withSessionCheck {
+        fanbox.getCreatorPosts(
+            creatorId = creatorId.toFanboxCreatorId(),
+            cursor = currentCursor.toFanboxCursor(),
+            nextCursor = nextCursor?.toFanboxCursor(),
+            onItemSchemaMismatch = ::recordSchemaMismatch,
+        ).toPageCursorInfo { it.toPost() }
+    }
+
+    override suspend fun getPostFromQuery(
+        query: String,
+        creatorId: CreatorId?,
+        page: Int,
+    ): PageNumberInfo<Post> = withSessionCheck {
+        fanbox.getPostFromQuery(query, creatorId?.toFanboxCreatorId(), page).toPageNumberInfo { it.toPost() }
+    }
+
+    override suspend fun getCreatorPostsPagination(creatorId: CreatorId): List<Cursor> = withSessionCheck {
+        fanbox.getCreatorPostsPagination(creatorId.toFanboxCreatorId()).map { it.toCursor() }
+    }
+
+    override suspend fun getCreatorFromQuery(query: String, page: Int): PageNumberInfo<CreatorDetail> = withSessionCheck {
+        fanbox.searchCreators(query, page)
+            .toPageNumberInfo { it.toCreatorDetail() }
+            .also { recordFollowStates(it.contents) }
+    }
+
+    override suspend fun getTagFromQuery(query: String): List<Tag> = withSessionCheck {
+        fanbox.searchTags(query).map { it.toTag() }
+    }
+
+    override suspend fun getPostDetail(postId: PostId): PostDetail = withSessionCheck {
+        fanbox.getPostDetail(postId.toFanboxPostId()).toPostDetail()
+    }
+
+    override suspend fun getPostDetailCached(postId: PostId): PostDetail = withContext(ioDispatcher) {
+        postCache.getOrPut(postId) { getPostDetail(postId) }
+    }
+
+    override suspend fun getPostComment(postId: PostId, offset: Int): PageOffsetInfo<Comment> = withSessionCheck {
+        fanbox.getPostComment(
+            postId = postId.toFanboxPostId(),
+            offset = offset,
+            onItemSchemaMismatch = ::recordSchemaMismatch,
+        ).toPageOffsetInfo { it.toComment() }
+    }
+
+    override fun getHomePostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>> = Pager(
+        config = PagingConfig(pageSize = loadSize),
+        initialKey = null,
+        pagingSourceFactory = {
+            HomePostsPagingSource(this, isHideRestricted)
+        },
+    )
+        .flow
+        .cachedIn(scope)
+        .also { homePostsPager = it }
+
+    override fun getHomePostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>> = homePostsPager ?: getHomePostsPager(loadSize, isHideRestricted)
+
+    override fun getSupportedPostsPager(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>> = Pager(
+        config = PagingConfig(pageSize = loadSize),
+        initialKey = null,
+        pagingSourceFactory = {
+            SupportedPostsPagingSource(this, isHideRestricted)
+        },
+    )
+        .flow
+        .cachedIn(scope)
+        .also { supportedPostsPager = it }
+
+    override fun getSupportedPostsPagerCache(loadSize: Int, isHideRestricted: Boolean): Flow<PagingData<Post>> = supportedPostsPager ?: getSupportedPostsPager(loadSize, isHideRestricted)
+
+    // Flow の生成に必要なカーソル一覧を先に取得し、取得失敗を呼び出し側へ返す。
+    @Suppress("SuspendFunWithFlowReturnType")
+    override suspend fun getCreatorPostsPager(creatorId: CreatorId, loadSize: Int): Flow<PagingData<Post>> {
+        val cursors = getCreatorPostsPagination(creatorId)
 
         return Pager(
             config = PagingConfig(pageSize = loadSize),
@@ -350,195 +632,202 @@ class FanboxRepositoryImpl(
             .also { creatorPostsPager = it }
     }
 
-    override suspend fun getCreatorPostsPagerCache(): Flow<PagingData<FanboxPost>>? {
-        return creatorPostsPager
+    override fun getCreatorPostsPagerCache(): Flow<PagingData<Post>>? = creatorPostsPager
+
+    override fun getPostsFromQueryPager(query: String, creatorId: CreatorId?): Flow<PagingData<Post>> = Pager(
+        config = PagingConfig(pageSize = 10),
+        initialKey = null,
+        pagingSourceFactory = {
+            SearchPostsPagingSource(this, creatorId, query)
+        },
+    )
+        .flow
+        .cachedIn(scope)
+        .also { searchPostsPager = it }
+
+    override fun getPostsFromQueryPagerCache(): Flow<PagingData<Post>>? = searchPostsPager
+
+    override fun getCreatorsFromQueryPager(query: String): Flow<PagingData<CreatorDetail>> = Pager(
+        config = PagingConfig(pageSize = 10),
+        initialKey = null,
+        pagingSourceFactory = {
+            SearchCreatorsPagingSource(this, query)
+        },
+    ).flow
+
+    override suspend fun getFollowingCreators(): List<CreatorDetail> = withSessionCheck {
+        fanbox.getFollowingCreators(::recordSchemaMismatch)
+            .map { it.toCreatorDetail() }
+            .also(::recordFollowStates)
     }
 
-    override suspend fun getPostsFromQueryPager(query: String, creatorId: CreatorId?): Flow<PagingData<FanboxPost>> {
-        return Pager(
-            config = PagingConfig(pageSize = 10),
-            initialKey = null,
-            pagingSourceFactory = {
-                SearchPostsPagingSource(this, creatorId, query)
-            },
+    override suspend fun getFollowingPixivCreators(): List<CreatorDetail> = withSessionCheck {
+        fanbox.getFollowingPixivCreators(::recordSchemaMismatch)
+            .map { it.toCreatorDetail() }
+            .also(::recordFollowStates)
+    }
+
+    override suspend fun getRecommendedCreators(): List<CreatorDetail> = withSessionCheck {
+        fanbox.getRecommendedCreators(::recordSchemaMismatch)
+            .map { it.toCreatorDetail() }
+            .also(::recordFollowStates)
+    }
+
+    override suspend fun getCreatorDetail(creatorId: CreatorId): CreatorDetail = withSessionCheck {
+        fanbox.getCreatorDetail(creatorId.toFanboxCreatorId())
+            .toCreatorDetail()
+            .also { recordFollowStates(listOf(it)) }
+    }
+
+    override suspend fun getCreatorDetailCached(creatorId: CreatorId): CreatorDetail = withContext(ioDispatcher) {
+        creatorCache.getOrPut(creatorId) { getCreatorDetail(creatorId) }
+    }
+
+    override suspend fun getCreatorTags(creatorId: CreatorId): List<Tag> = withSessionCheck {
+        fanbox.getCreatorTags(creatorId.toFanboxCreatorId()).map { it.toTag() }
+    }
+
+    override suspend fun getSupportedPlans(): List<CreatorPlan> = withSessionCheck {
+        fanbox.getSupportedPlans(::recordSchemaMismatch).map { it.toCreatorPlan() }
+    }
+
+    override suspend fun getCreatorPlans(creatorId: CreatorId): List<CreatorPlan> = withSessionCheck {
+        fanbox.getCreatorPlans(creatorId.toFanboxCreatorId(), ::recordSchemaMismatch).map { it.toCreatorPlan() }
+    }
+
+    override suspend fun getCreatorPlan(creatorId: CreatorId): CreatorPlanDetail = withSessionCheck {
+        fanbox.getCreatorPlanDetail(creatorId.toFanboxCreatorId()).toCreatorPlanDetail()
+    }
+
+    override suspend fun getPaidRecords(): List<PaidRecord> = withSessionCheck {
+        fanbox.getPaidRecords().map { it.toPaidRecord() }
+    }
+
+    override suspend fun getUnpaidRecords(): List<PaidRecord> = withSessionCheck {
+        fanbox.getUnpaidRecords().map { it.toPaidRecord() }
+    }
+
+    override suspend fun getNewsLetters(): List<NewsLetter> = withSessionCheck {
+        fanbox.getNewsLetters().map { it.toNewsLetter() }
+    }
+
+    override suspend fun getBells(page: Int): PageNumberInfo<Bell> = withSessionCheck {
+        // 一覧を取得した時点で FANBOX 側の通知を既読にする。fankt 0.1.0 の既定は未読のまま残す
+        // 挙動だが、PixiView は従来どおり既読化する。
+        fanbox.getBells(
+            page = page,
+            onItemSchemaMismatch = ::recordSchemaMismatch,
+            markNotificationsRead = true,
+        ).toPageNumberInfo { it.toBell() }
+    }
+
+    override suspend fun likePost(postId: PostId) = withSessionCheck {
+        fanbox.likePost(postId.toFanboxPostId())
+    }
+
+    override suspend fun likeComment(commentId: CommentId) = withSessionCheck {
+        fanbox.likeComment(commentId.toFanboxCommentId())
+    }
+
+    override suspend fun addComment(
+        postId: PostId,
+        comment: String,
+        rootCommentId: CommentId?,
+        parentCommentId: CommentId?,
+    ) = withSessionCheck {
+        fanbox.addComment(
+            postId = postId.toFanboxPostId(),
+            rootCommentId = rootCommentId?.toFanboxCommentId(),
+            parentCommentId = parentCommentId?.toFanboxCommentId(),
+            body = comment,
         )
-            .flow
-            .cachedIn(scope)
-            .also { searchPostsPager = it }
     }
 
-    override suspend fun getPostsFromQueryPagerCache(): Flow<PagingData<FanboxPost>>? {
-        return searchPostsPager
+    override suspend fun deleteComment(commentId: CommentId) = withSessionCheck {
+        fanbox.deleteComment(commentId.toFanboxCommentId())
     }
 
-    override suspend fun getCreatorsFromQueryPager(query: String): Flow<PagingData<FanboxCreatorDetail>> {
-        return Pager(
-            config = PagingConfig(pageSize = 10),
-            initialKey = null,
-            pagingSourceFactory = {
-                SearchCreatorsPagingSource(this, query)
-            },
-        ).flow
+    override suspend fun followCreator(creatorUserId: UserId) = changeFollowState(creatorUserId, isFollowed = true) {
+        fanbox.followCreator(creatorUserId.toFanboxUserId())
     }
 
-    override suspend fun getFollowingCreators(): List<FanboxCreatorDetail> = withContext(ioDispatcher) {
-        get("creator.listFollowing").parse<FanboxCreatorItemsEntity>()!!.translate()
+    override suspend fun unfollowCreator(creatorUserId: UserId) = changeFollowState(creatorUserId, isFollowed = false) {
+        fanbox.unfollowCreator(creatorUserId.toFanboxUserId())
     }
 
-    override suspend fun getFollowingPixivCreators(): List<FanboxCreatorDetail> = withContext(ioDispatcher) {
-        get("creator.listPixiv").parse<FanboxCreatorItemsEntity>()!!.translate()
+    private fun recordFollowStates(creators: List<CreatorDetail>) {
+        val states = creators.mapNotNull { creator -> creator.user?.userId?.let { it to creator.isFollowed } }
+
+        _followStates.update { it + states }
     }
 
-    override suspend fun getRecommendedCreators(): List<FanboxCreatorDetail> = withContext(ioDispatcher) {
-        get("creator.listRecommended", mapOf("limit" to PAGE_LIMIT)).parse<FanboxCreatorItemsEntity>()!!.translate()
+    private fun recordFollowState(creatorUserId: UserId, isFollowed: Boolean) {
+        _followStates.update { it + (creatorUserId to isFollowed) }
     }
 
-    override suspend fun getCreator(creatorId: CreatorId): FanboxCreatorDetail = withContext(ioDispatcher) {
-        get("creator.get", mapOf("creatorId" to creatorId.value)).parse<FanboxCreatorEntity>()!!.translate().also {
-            creatorCache[creatorId] = it
-        }
-    }
+    // 押した直後に全画面の表示を変えるため、先に目的の状態にし、失敗したら押す前の状態に戻す。
+    // 続けて押したときに、確定していない状態を「押す前の状態」として戻さないよう、変更は1つずつ行う
+    private suspend fun changeFollowState(
+        creatorUserId: UserId,
+        isFollowed: Boolean,
+        request: suspend () -> Unit,
+    ) = followChangeMutex.withLock {
+        val previous = _followStates.value[creatorUserId]
 
-    override suspend fun getCreatorCached(creatorId: CreatorId): FanboxCreatorDetail = withContext(ioDispatcher) {
-        creatorCache.getOrPut(creatorId) { getCreator(creatorId) }
-    }
+        recordFollowState(creatorUserId, isFollowed)
 
-    override suspend fun getCreatorTags(creatorId: CreatorId): List<FanboxCreatorTag> = withContext(ioDispatcher) {
-        get("tag.getFeatured", mapOf("creatorId" to creatorId.value)).parse<FanboxCreatorTagsEntity>()!!.translate()
-    }
-
-    override suspend fun getSupportedPlans(): List<FanboxCreatorPlan> = withContext(ioDispatcher) {
-        get("plan.listSupporting").parse<FanboxCreatorPlansEntity>()!!.translate()
-    }
-
-    override suspend fun getCreatorPlans(creatorId: CreatorId): List<FanboxCreatorPlan> = withContext(ioDispatcher) {
-        get("plan.listCreator", mapOf("creatorId" to creatorId.value)).parse<FanboxCreatorPlansEntity>()!!.translate()
-    }
-
-    override suspend fun getCreatorPlan(creatorId: CreatorId): FanboxCreatorPlanDetail = withContext(ioDispatcher) {
-        get("legacy/support/creator", mapOf("creatorId" to creatorId.value)).parse<FanboxCreatorPlanEntity>()!!.translate()
-    }
-
-    override suspend fun getPaidRecords(): List<FanboxPaidRecord> = withContext(ioDispatcher) {
-        get("payment.listPaid").parse<FanboxPaidRecordEntity>()!!.translate()
-    }
-
-    override suspend fun getUnpaidRecords(): List<FanboxPaidRecord> = withContext(ioDispatcher) {
-        get("payment.listUnpaid").parse<FanboxPaidRecordEntity>()!!.translate()
-    }
-
-    override suspend fun getNewsLetters(): List<FanboxNewsLetter> = withContext(ioDispatcher) {
-        get("newsletter.list").parse<FanboxNewsLettersEntity>()!!.translate()
-    }
-
-    override suspend fun getBells(page: Int): PageNumberInfo<FanboxBell> = withContext(ioDispatcher) {
-        buildMap {
-            put("page", page.toString())
-            put("skipConvertUnreadNotification", "0")
-            put("commentOnly", "0")
-        }.let {
-            get("bell.list", it).parse<FanboxBellItemsEntity>()!!.translate()
-        }
-    }
-
-    override suspend fun likePost(postId: PostId): Unit = withContext(ioDispatcher) {
-        post("post.likePost", mapOf("postId" to postId.value)).requireSuccess()
-    }
-
-    override suspend fun likeComment(commentId: CommentId): Unit = withContext(ioDispatcher) {
-        post("post.likeComment", mapOf("commentId" to commentId.value)).requireSuccess()
-    }
-
-    override suspend fun addComment(postId: PostId, comment: String, rootCommentId: CommentId?, parentCommentId: CommentId?): Unit =
-        withContext(ioDispatcher) {
-            post(
-                dir = "post.addComment",
-                parameters = mapOf(
-                    "postId" to postId.value,
-                    "rootCommentId" to rootCommentId?.value.orEmpty(),
-                    "parentCommentId" to parentCommentId?.value.orEmpty(),
-                    "body" to comment,
-                ),
-            ).requireSuccess()
+        try {
+            withSessionCheck(request)
+        } catch (exception: Throwable) {
+            _followStates.update { states -> previous?.let { states + (creatorUserId to it) } ?: (states - creatorUserId) }
+            throw exception
         }
 
-    override suspend fun deleteComment(commentId: CommentId): Unit = withContext(ioDispatcher) {
-        post("post.deleteComment", mapOf("commentId" to commentId.value)).requireSuccess()
-    }
-
-    override suspend fun followCreator(creatorUserId: String): Unit = withContext(ioDispatcher) {
-        post("follow.create", mapOf("creatorUserId" to creatorUserId)).requireSuccess()
-    }
-
-    override suspend fun unfollowCreator(creatorUserId: String): Unit = withContext(ioDispatcher) {
-        post("follow.delete", mapOf("creatorUserId" to creatorUserId)).requireSuccess()
+        // 通信中に届いた取得結果が、変更前の状態で上書きしていることがあるため、成功した状態を書き直す
+        recordFollowState(creatorUserId, isFollowed)
     }
 
     override suspend fun blockCreator(creatorId: CreatorId) {
-        blockDataStore.blockCreator(creatorId)
+        blockDataStore.blockCreator(creatorId.toFanboxCreatorId())
     }
 
     override suspend fun unblockCreator(creatorId: CreatorId) {
-        blockDataStore.unblockCreator(creatorId)
+        blockDataStore.unblockCreator(creatorId.toFanboxCreatorId())
     }
 
-    override suspend fun getBookmarkedPosts(): List<FanboxPost> = withContext(ioDispatcher) {
-        bookmarkDataStore.get().map { it.copy(isBookmarked = true) }
+    override suspend fun getBookmarkedPosts(): List<Post> = withContext(ioDispatcher) {
+        bookmarkDataStore.get().map { it.toPost() }
     }
 
-    override suspend fun bookmarkPost(post: FanboxPost) = withContext(ioDispatcher) {
-        bookmarkDataStore.save(post.copy(isBookmarked = true))
+    override suspend fun bookmarkPost(post: Post) = withContext(ioDispatcher) {
+        bookmarkDataStore.save(post.toFanboxPost())
     }
 
-    override suspend fun unbookmarkPost(post: FanboxPost) {
-        bookmarkDataStore.remove(post)
+    override suspend fun unbookmarkPost(post: Post) {
+        bookmarkDataStore.remove(post.toFanboxPost())
     }
 
-    private suspend fun html(url: String): String {
-        return client.get(url).bodyAsText()
+    override suspend fun setCreatorAllPostsCache(creatorId: CreatorId, posts: List<Post>) {
+        creatorAllPostsCache[creatorId] = posts
     }
 
-    private suspend fun get(dir: String, parameters: Map<String, String> = emptyMap()): HttpResponse {
-        return client.get {
-            url("$API/$dir")
-            fanboxHeader()
+    override suspend fun getCreatorAllPostsCache(creatorId: CreatorId): List<Post>? = creatorAllPostsCache[creatorId]
 
-            for ((key, value) in parameters) {
-                parameter(key, value)
-            }
-        }
-    }
-
-    @OptIn(InternalAPI::class)
-    private suspend fun post(dir: String, parameters: Map<String, String> = emptyMap()): HttpResponse {
-        return client.post {
-            url("$API/$dir")
-            fanboxHeader()
-
-            body = buildJsonObject {
-                for ((key, value) in parameters) {
-                    put(key, value)
-                }
-            }.toString()
-        }
-    }
-
-    override suspend fun download(url: String): HttpResponse {
-        return client.get {
-            url(url)
-            fanboxHeader()
-        }
-    }
-
-    private suspend fun HttpMessageBuilder.fanboxHeader() {
-        header("origin", "https://www.fanbox.cc")
-        header("referer", "https://www.fanbox.cc")
-        header("user-agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
-        header("x-csrf-token", metaData.first().csrfToken)
-    }
-
-    companion object {
-        private const val API = "https://api.fanbox.cc"
-        private const val PAGE_LIMIT = "10"
+    override suspend fun download(
+        url: String,
+        onDownload: (Float) -> Unit,
+        onChunk: suspend (ByteArray) -> Unit,
+    ) = withSessionCheck {
+        fanbox.download(
+            url = url,
+            onProgress = onDownload,
+            onChunk = onChunk,
+        )
     }
 }
+
+/** FANBOX のセッション Cookie の名前。 */
+private const val FANBOX_SESSION_ID_NAME = "FANBOXSESSID"
+
+/** [fanbox] と、その生成に使った guest の配信先。 */
+private class ChanneledFanbox(val channel: GuestChannel, val fanbox: Fanbox)

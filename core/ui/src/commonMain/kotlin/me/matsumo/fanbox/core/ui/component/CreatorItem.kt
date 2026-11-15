@@ -1,9 +1,9 @@
 package me.matsumo.fanbox.core.ui.component
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,38 +38,45 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorDetail
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.common_follow
-import me.matsumo.fanbox.core.ui.common_supporting
-import me.matsumo.fanbox.core.ui.common_unfollow
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail.ProfileItem
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.common_follow
+import me.matsumo.fanbox.core.resources.common_supporting
+import me.matsumo.fanbox.core.resources.common_unfollow
+import me.matsumo.fanbox.core.resources.im_default_user
 import me.matsumo.fanbox.core.ui.extensition.FadePlaceHolder
 import me.matsumo.fanbox.core.ui.extensition.SimmerPlaceHolder
 import me.matsumo.fanbox.core.ui.extensition.asCoilImage
 import me.matsumo.fanbox.core.ui.extensition.fanboxHeader
-import me.matsumo.fanbox.core.ui.im_default_user
 import me.matsumo.fanbox.core.ui.theme.bold
 import org.jetbrains.compose.resources.stringResource
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CreatorItem(
-    creatorDetail: FanboxCreatorDetail,
+    creatorDetail: CreatorDetail,
     onClickCreator: (CreatorId) -> Unit,
-    onClickFollow: (String) -> Unit,
-    onClickUnfollow: (String) -> Unit,
+    onClickFollow: (UserId) -> Unit,
+    onClickUnfollow: (UserId) -> Unit,
     onClickSupporting: (String) -> Unit,
     modifier: Modifier = Modifier,
     isFollowed: Boolean = creatorDetail.isFollowed,
+    isShowCoverImage: Boolean = true,
+    isShowDescription: Boolean = true,
 ) {
-    var isEllipsized by remember { mutableStateOf(false) }
-    var isDisplayedAll by remember { mutableStateOf(false) }
+    var isEllipsized by rememberSaveable { mutableStateOf(false) }
+    var isDisplayedAll by rememberSaveable { mutableStateOf(false) }
+
+    // Unknown はサムネイルを持たないためページャに空ページとして現れる。表示できるものだけを残す。
+    val displayableProfileItems = remember(creatorDetail.profileItems) {
+        creatorDetail.profileItems.filter { it !is ProfileItem.Unknown }
+    }
 
     Card(
         modifier = modifier
@@ -76,42 +85,64 @@ fun CreatorItem(
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
     ) {
-        if (creatorDetail.coverImageUrl != null) {
-            SubcomposeAsyncImage(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16 / 9f)
-                    .clip(RoundedCornerShape(4.dp)),
-                model = ImageRequest.Builder(LocalPlatformContext.current)
-                    .fanboxHeader()
-                    .data(creatorDetail.coverImageUrl)
-                    .build(),
-                loading = {
-                    SimmerPlaceHolder()
-                },
-                contentScale = ContentScale.Crop,
-                contentDescription = null,
-            )
-        } else if (creatorDetail.profileItems.isNotEmpty()) {
-            HorizontalPager(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16 / 9f)
-                    .clip(RoundedCornerShape(4.dp)),
-                state = rememberPagerState { creatorDetail.profileItems.size },
-            ) {
+        if (isShowCoverImage) {
+            if (creatorDetail.coverImageUrl != null) {
                 SubcomposeAsyncImage(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16 / 9f)
+                        .clip(RoundedCornerShape(4.dp)),
                     model = ImageRequest.Builder(LocalPlatformContext.current)
                         .fanboxHeader()
-                        .data(creatorDetail.profileItems[it].thumbnailUrl)
+                        .data(creatorDetail.coverImageUrl)
                         .build(),
                     loading = {
-                        FadePlaceHolder()
+                        SimmerPlaceHolder()
                     },
                     contentScale = ContentScale.Crop,
                     contentDescription = null,
                 )
+            } else if (displayableProfileItems.isNotEmpty()) {
+                HorizontalPager(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16 / 9f)
+                        .clip(RoundedCornerShape(4.dp)),
+                    state = rememberPagerState { displayableProfileItems.size },
+                ) { page ->
+                    val profileItem = displayableProfileItems[page]
+                    val thumbnailUrl = when (profileItem) {
+                        is ProfileItem.Image -> profileItem.thumbnailUrl
+                        is ProfileItem.Video -> profileItem.thumbnailUrl
+                        is ProfileItem.Unknown -> null
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        SubcomposeAsyncImage(
+                            modifier = Modifier.fillMaxWidth(),
+                            model = ImageRequest.Builder(LocalPlatformContext.current)
+                                .fanboxHeader()
+                                .data(thumbnailUrl)
+                                .build(),
+                            loading = {
+                                FadePlaceHolder()
+                            },
+                            contentScale = ContentScale.Crop,
+                            contentDescription = null,
+                        )
+
+                        if (profileItem is ProfileItem.Video) {
+                            Icon(
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .size(48.dp),
+                                imageVector = Icons.Default.PlayCircleOutline,
+                                tint = MaterialTheme.colorScheme.surface,
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -130,7 +161,7 @@ fun CreatorItem(
                 onClickSupporting = onClickSupporting,
             )
 
-            if (creatorDetail.description.isNotBlank()) {
+            if (creatorDetail.description.isNotBlank() && isShowDescription) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -164,13 +195,12 @@ fun CreatorItem(
     }
 }
 
-@OptIn(ExperimentalCoilApi::class)
 @Composable
 private fun UserSection(
-    creatorDetail: FanboxCreatorDetail,
+    creatorDetail: CreatorDetail,
     isFollowed: Boolean,
-    onClickFollow: (String) -> Unit,
-    onClickUnfollow: (String) -> Unit,
+    onClickFollow: (UserId) -> Unit,
+    onClickUnfollow: (UserId) -> Unit,
     onClickSupporting: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -185,7 +215,7 @@ private fun UserSection(
                 .clip(CircleShape),
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .error(Res.drawable.im_default_user.asCoilImage())
-                .data(creatorDetail.user.iconUrl)
+                .data(creatorDetail.user?.iconUrl)
                 .build(),
             contentDescription = null,
         )
@@ -196,14 +226,14 @@ private fun UserSection(
         ) {
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = creatorDetail.user.name,
+                text = creatorDetail.user?.name.orEmpty(),
                 style = MaterialTheme.typography.titleMedium.bold(),
                 color = MaterialTheme.colorScheme.primary,
             )
 
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = "@${creatorDetail.user.creatorId}",
+                text = "@${creatorDetail.user?.creatorId?.value ?: "Unknown"}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -212,19 +242,25 @@ private fun UserSection(
         when {
             creatorDetail.isSupported -> {
                 Button(onClick = { onClickSupporting.invoke(creatorDetail.supportingBrowserUrl) }) {
-                    Text(stringResource(Res.string.common_supporting))
+                    Text(
+                        text = stringResource(Res.string.common_supporting),
+                    )
                 }
             }
 
             isFollowed -> {
-                OutlinedButton(onClick = { onClickUnfollow.invoke(creatorDetail.user.userId) }) {
-                    Text(stringResource(Res.string.common_unfollow))
+                OutlinedButton(onClick = { creatorDetail.user?.userId?.let(onClickUnfollow) }) {
+                    Text(
+                        text = stringResource(Res.string.common_unfollow),
+                    )
                 }
             }
 
             else -> {
-                Button(onClick = { onClickFollow.invoke(creatorDetail.user.userId) }) {
-                    Text(stringResource(Res.string.common_follow))
+                Button(onClick = { creatorDetail.user?.userId?.let(onClickFollow) }) {
+                    Text(
+                        text = stringResource(Res.string.common_follow),
+                    )
                 }
             }
         }

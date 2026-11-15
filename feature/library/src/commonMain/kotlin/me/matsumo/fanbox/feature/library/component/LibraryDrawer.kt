@@ -7,22 +7,16 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.PermanentDrawerSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavDestination
-import me.matsumo.fanbox.core.model.UserData
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.Setting
 
 @Composable
 fun LibraryDrawer(
     state: DrawerState,
-    userData: UserData?,
-    currentDestination: NavDestination?,
+    setting: Setting?,
+    currentDestination: LibraryDestination,
     onClickLibrary: (LibraryDestination) -> Unit,
-    navigateToBookmarkedPosts: () -> Unit,
-    navigateToFollowingCreators: () -> Unit,
-    navigateToSupportingCreators: () -> Unit,
-    navigateToPayments: () -> Unit,
-    navigateToSetting: () -> Unit,
-    navigateToAbout: () -> Unit,
-    navigateToBillingPlus: (String?) -> Unit,
+    navigateTo: (Destination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ModalDrawerSheet(
@@ -32,16 +26,10 @@ fun LibraryDrawer(
         DrawerContent(
             modifier = modifier,
             state = state,
-            userData = userData,
+            setting = setting,
             currentDestination = currentDestination,
             onClickLibrary = onClickLibrary,
-            navigateToBookmarkedPosts = navigateToBookmarkedPosts,
-            navigateToFollowingCreators = navigateToFollowingCreators,
-            navigateToSupportingCreators = navigateToSupportingCreators,
-            navigateToPayments = navigateToPayments,
-            navigateToSetting = navigateToSetting,
-            navigateToAbout = navigateToAbout,
-            navigateToBillingPlus = navigateToBillingPlus,
+            navigateTo = navigateTo,
         )
     }
 }
@@ -49,16 +37,10 @@ fun LibraryDrawer(
 @Composable
 fun LibraryPermanentDrawer(
     state: DrawerState,
-    userData: UserData?,
-    currentDestination: NavDestination?,
+    setting: Setting?,
+    currentDestination: LibraryDestination,
     onClickLibrary: (LibraryDestination) -> Unit,
-    navigateToBookmarkedPosts: () -> Unit,
-    navigateToFollowingCreators: () -> Unit,
-    navigateToSupportingCreators: () -> Unit,
-    navigateToPayments: () -> Unit,
-    navigateToSetting: () -> Unit,
-    navigateToAbout: () -> Unit,
-    navigateToBillingPlus: (String?) -> Unit,
+    navigateTo: (Destination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PermanentDrawerSheet(
@@ -68,16 +50,10 @@ fun LibraryPermanentDrawer(
         DrawerContent(
             modifier = modifier,
             state = state,
-            userData = userData,
+            setting = setting,
             currentDestination = currentDestination,
             onClickLibrary = onClickLibrary,
-            navigateToBookmarkedPosts = navigateToBookmarkedPosts,
-            navigateToFollowingCreators = navigateToFollowingCreators,
-            navigateToSupportingCreators = navigateToSupportingCreators,
-            navigateToPayments = navigateToPayments,
-            navigateToSetting = navigateToSetting,
-            navigateToAbout = navigateToAbout,
-            navigateToBillingPlus = navigateToBillingPlus,
+            navigateTo = navigateTo,
         )
     }
 }

@@ -3,6 +3,7 @@ package me.matsumo.fanbox.core.ui.view
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -12,7 +13,6 @@ import platform.UIKit.UIAlertActionStyleDefault
 import platform.UIKit.UIAlertController
 import platform.UIKit.UIAlertControllerStyleAlert
 import platform.UIKit.UIApplication
-import platform.objc.sel_registerName
 
 @Composable
 actual fun SimpleAlertDialog(
@@ -22,7 +22,8 @@ actual fun SimpleAlertDialog(
     negativeText: String?,
     onClickPositive: () -> Unit,
     onClickNegative: () -> Unit,
-    isCaution: Boolean
+    isCaution: Boolean,
+    modifier: Modifier,
 ) {
     Dialog(
         onDismissRequest = { onClickNegative.invoke() },
@@ -35,7 +36,7 @@ actual fun SimpleAlertDialog(
                 negativeText = negativeText,
                 onClickPositive = onClickPositive,
                 onClickNegative = onClickNegative,
-                isCaution = isCaution
+                isCaution = isCaution,
             )
         }
 
@@ -67,9 +68,6 @@ private class AlertDialogManager(
     private var isPresented = false
     private var isAnimating = false
 
-    @OptIn(ExperimentalForeignApi::class)
-    private val dismissPointer = sel_registerName("dismiss")
-
     private val onDismissLambda = {
         UIApplication.sharedApplication.keyWindow?.rootViewController?.dismissViewControllerAnimated(
             flag = true,
@@ -77,7 +75,7 @@ private class AlertDialogManager(
                 isPresented = false
                 isAnimating = false
                 onClickNegative.invoke()
-            }
+            },
         )
     }
 
@@ -99,7 +97,7 @@ private class AlertDialogManager(
         val alertController = UIAlertController.alertControllerWithTitle(
             title = title,
             message = description,
-            preferredStyle = UIAlertControllerStyleAlert
+            preferredStyle = UIAlertControllerStyleAlert,
         )
 
         if (positiveText != null) {
@@ -107,8 +105,8 @@ private class AlertDialogManager(
                 UIAlertAction.actionWithTitle(
                     title = positiveText,
                     style = UIAlertActionStyleDefault,
-                    handler = { onClickPositive.invoke() }
-                )
+                    handler = { onClickPositive.invoke() },
+                ),
             )
         }
 
@@ -117,8 +115,8 @@ private class AlertDialogManager(
                 UIAlertAction.actionWithTitle(
                     title = negativeText,
                     style = UIAlertActionStyleDefault,
-                    handler = { onClickNegative.invoke() }
-                )
+                    handler = { onClickNegative.invoke() },
+                ),
             )
         }
 
@@ -128,7 +126,7 @@ private class AlertDialogManager(
             completion = {
                 isPresented = true
                 isAnimating = false
-            }
+            },
         )
     }
 }

@@ -1,13 +1,18 @@
 package me.matsumo.fanbox.feature.post.detail.items
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material.MaterialTheme.colors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -22,15 +27,23 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
+import com.svenjacobs.reveal.RevealShape
+import com.svenjacobs.reveal.RevealState
+import com.svenjacobs.reveal.revealable
+import me.matsumo.fanbox.core.model.TranslationState
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.feature.post.detail.PostDetailRevealKeys
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PostDetailTopAppBar(
     state: LazyListState,
-    postDetail: FanboxPostDetail,
+    revealState: RevealState,
+    postDetail: PostDetail,
+    bodyTransState: TranslationState<PostDetail>,
     isShowHeader: Boolean,
     onClickNavigateUp: () -> Unit,
+    onClickTranslate: (PostDetail) -> Unit,
     onClickMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,9 +67,9 @@ internal fun PostDetailTopAppBar(
     val threshold = remember(state) {
         val headerSize = if (isShowHeader) 1 else 0
         val itemSize = when (val content = postDetail.body) {
-            is FanboxPostDetail.Body.Article -> content.blocks.size
-            is FanboxPostDetail.Body.File -> content.files.size
-            is FanboxPostDetail.Body.Image -> content.images.size
+            is PostDetail.Body.Article -> content.blocks.size
+            is PostDetail.Body.File -> content.files.size
+            is PostDetail.Body.Image -> content.images.size
             else -> 0
         }
 
@@ -73,7 +86,10 @@ internal fun PostDetailTopAppBar(
         modifier = modifier,
         title = { /* no title */ },
         navigationIcon = {
-            IconButton(onClickNavigateUp) {
+            IconButton(
+                onClick = onClickNavigateUp,
+                colors = IconButtonDefaults.iconButtonColors(scrolledContainerColor.copy(alpha = 0.3f)),
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = null,
@@ -81,7 +97,31 @@ internal fun PostDetailTopAppBar(
             }
         },
         actions = {
-            IconButton(onClickMenu) {
+            IconButton(
+                modifier = Modifier.revealable(
+                    key = PostDetailRevealKeys.Translate,
+                    state = revealState,
+                    shape = RevealShape.Circle,
+                ),
+                onClick = { onClickTranslate.invoke(postDetail) },
+                colors = IconButtonDefaults.iconButtonColors(scrolledContainerColor.copy(alpha = 0.3f)),
+            ) {
+                if (bodyTransState is TranslationState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(6.dp),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Translate,
+                        contentDescription = null,
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onClickMenu,
+                colors = IconButtonDefaults.iconButtonColors(scrolledContainerColor.copy(alpha = 0.3f)),
+            ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = null,
@@ -94,6 +134,6 @@ internal fun PostDetailTopAppBar(
             navigationIconContentColor = contentColor,
             titleContentColor = contentColor,
             actionIconContentColor = contentColor,
-        )
+        ),
     )
 }

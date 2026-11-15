@@ -2,23 +2,18 @@ package me.matsumo.fanbox.feature.creator.top.items
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,143 +35,111 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorDetail
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.common_follow
-import me.matsumo.fanbox.core.ui.common_supporting
-import me.matsumo.fanbox.core.ui.common_unfollow
-import me.matsumo.fanbox.core.ui.component.PixiViewTopBar
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.common_follow
+import me.matsumo.fanbox.core.resources.common_supporting
+import me.matsumo.fanbox.core.resources.common_unfollow
+import me.matsumo.fanbox.core.resources.creator_tag_has_adult_content
+import me.matsumo.fanbox.core.resources.creator_tag_has_booth_shop
+import me.matsumo.fanbox.core.resources.creator_tag_is_accepting_request
+import me.matsumo.fanbox.core.resources.creator_tag_is_supported
+import me.matsumo.fanbox.core.resources.im_default_user
+import me.matsumo.fanbox.core.resources.vec_booth
+import me.matsumo.fanbox.core.resources.vec_facebook
+import me.matsumo.fanbox.core.resources.vec_fanza
+import me.matsumo.fanbox.core.resources.vec_instagram
+import me.matsumo.fanbox.core.resources.vec_line
+import me.matsumo.fanbox.core.resources.vec_pixiv
+import me.matsumo.fanbox.core.resources.vec_tumblr
+import me.matsumo.fanbox.core.resources.vec_twitter
+import me.matsumo.fanbox.core.resources.vec_unknown_link
+import me.matsumo.fanbox.core.resources.vec_youtube
 import me.matsumo.fanbox.core.ui.component.TagItems
-import me.matsumo.fanbox.core.ui.creator_tag_has_adult_content
-import me.matsumo.fanbox.core.ui.creator_tag_has_booth_shop
-import me.matsumo.fanbox.core.ui.creator_tag_is_accepting_request
-import me.matsumo.fanbox.core.ui.creator_tag_is_supported
 import me.matsumo.fanbox.core.ui.extensition.FadePlaceHolder
 import me.matsumo.fanbox.core.ui.extensition.asCoilImage
 import me.matsumo.fanbox.core.ui.extensition.fanboxHeader
-import me.matsumo.fanbox.core.ui.im_default_user
 import me.matsumo.fanbox.core.ui.theme.bold
-import me.matsumo.fanbox.core.ui.vec_booth
-import me.matsumo.fanbox.core.ui.vec_facebook
-import me.matsumo.fanbox.core.ui.vec_fanza
-import me.matsumo.fanbox.core.ui.vec_instagram
-import me.matsumo.fanbox.core.ui.vec_line
-import me.matsumo.fanbox.core.ui.vec_pixiv
-import me.matsumo.fanbox.core.ui.vec_tumblr
-import me.matsumo.fanbox.core.ui.vec_twitter
-import me.matsumo.fanbox.core.ui.vec_unknown_link
-import me.matsumo.fanbox.core.ui.vec_youtube
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CreatorTopHeader(
-    creatorDetail: FanboxCreatorDetail,
-    onClickTerminate: () -> Unit,
+    creatorDetail: CreatorDetail,
+    isFollowed: Boolean,
     onClickLink: (String) -> Unit,
     onClickDescription: (String) -> Unit,
-    onClickFollow: suspend (String) -> Result<Unit>,
-    onClickUnfollow: suspend (String) -> Result<Unit>,
+    onClickFollow: (UserId) -> Unit,
+    onClickUnfollow: (UserId) -> Unit,
     onClickSupporting: (String) -> Unit,
-    onClickAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scope = rememberCoroutineScope()
     val tagItems = createTags(creatorDetail)
-    var isFollowed by remember(creatorDetail.isFollowed) { mutableStateOf(creatorDetail.isFollowed) }
 
-    Box(modifier) {
-        Column(Modifier.fillMaxWidth()) {
-            HeaderTop(
-                modifier = Modifier.fillMaxWidth(),
-                creatorDetail = creatorDetail,
-                isSupported = creatorDetail.isSupported,
-                isFollowed = isFollowed,
-                onClickSupport = { onClickSupporting.invoke(creatorDetail.supportingBrowserUrl) },
-                onClickFollow = {
-                    scope.launch {
-                        isFollowed = true
-                        isFollowed = onClickFollow.invoke(creatorDetail.user.userId).isSuccess
-                    }
-                },
-                onClickUnfollow = {
-                    scope.launch {
-                        isFollowed = false
-                        isFollowed = !onClickUnfollow.invoke(creatorDetail.user.userId).isSuccess
-                    }
-                },
-                onClickLink = { onClickLink.invoke(it) },
-            )
+    Column(modifier) {
+        HeaderTop(
+            modifier = Modifier.fillMaxWidth(),
+            creatorDetail = creatorDetail,
+            isSupported = creatorDetail.isSupported,
+            isFollowed = isFollowed,
+            onClickSupport = { onClickSupporting.invoke(creatorDetail.supportingBrowserUrl) },
+            onClickFollow = { creatorDetail.user?.userId?.let(onClickFollow) },
+            onClickUnfollow = { creatorDetail.user?.userId?.let(onClickUnfollow) },
+            onClickLink = { onClickLink.invoke(it) },
+        )
 
-            Spacer(modifier = Modifier.size(16.dp))
+        Text(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp),
+            text = creatorDetail.user?.name.orEmpty(),
+            style = MaterialTheme.typography.titleLarge.bold(),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
 
-            Text(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                text = creatorDetail.user.name,
-                style = MaterialTheme.typography.titleLarge.bold(),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+        Text(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 4.dp, end = 16.dp),
+            text = "@${creatorDetail.creatorId.value}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-            Spacer(modifier = Modifier.size(4.dp))
+        DescriptionItem(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    top = 16.dp,
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = if (tagItems.isEmpty()) 16.dp else 0.dp,
+                ),
+            description = creatorDetail.description,
+            onClickShowDescription = onClickDescription,
+        )
 
-            Text(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                text = "@${creatorDetail.creatorId}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            DescriptionItem(
+        if (tagItems.isNotEmpty()) {
+            TagItems(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
                         top = 16.dp,
                         start = 16.dp,
                         end = 16.dp,
-                        bottom = if (tagItems.isEmpty()) 16.dp else 0.dp,
+                        bottom = 24.dp,
                     ),
-                description = creatorDetail.description,
-                onClickShowDescription = onClickDescription,
+                tags = tagItems.toImmutableList(),
+                textStyle = MaterialTheme.typography.bodySmall,
+                onClickTag = { /* do nothing */ },
             )
-
-            if (tagItems.isNotEmpty()) {
-                TagItems(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            top = 16.dp,
-                            start = 16.dp,
-                            end = 16.dp,
-                            bottom = 24.dp,
-                        ),
-                    tags = tagItems.toImmutableList(),
-                    textStyle = MaterialTheme.typography.bodySmall,
-                    onClickTag = { /* do nothing */ },
-                )
-            }
         }
-
-        PixiViewTopBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding(),
-            isTransparent = true,
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            onClickNavigation = onClickTerminate,
-            onClickActions = onClickAction,
-        )
     }
 }
 
@@ -222,7 +184,7 @@ private fun FollowStateButton(
 
 @Composable
 private fun ProfileLinkItem(
-    profileLinks: ImmutableList<FanboxCreatorDetail.ProfileLink>,
+    profileLinks: ImmutableList<CreatorDetail.ProfileLink>,
     onClickLink: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -245,16 +207,16 @@ private fun ProfileLinkItem(
                         .padding(4.dp),
                     painter = painterResource(
                         when (profileLink.link) {
-                            FanboxCreatorDetail.Platform.BOOTH -> Res.drawable.vec_booth
-                            FanboxCreatorDetail.Platform.FACEBOOK -> Res.drawable.vec_facebook
-                            FanboxCreatorDetail.Platform.FANZA -> Res.drawable.vec_fanza
-                            FanboxCreatorDetail.Platform.INSTAGRAM -> Res.drawable.vec_instagram
-                            FanboxCreatorDetail.Platform.LINE -> Res.drawable.vec_line
-                            FanboxCreatorDetail.Platform.PIXIV -> Res.drawable.vec_pixiv
-                            FanboxCreatorDetail.Platform.TUMBLR -> Res.drawable.vec_tumblr
-                            FanboxCreatorDetail.Platform.TWITTER -> Res.drawable.vec_twitter
-                            FanboxCreatorDetail.Platform.YOUTUBE -> Res.drawable.vec_youtube
-                            FanboxCreatorDetail.Platform.UNKNOWN -> Res.drawable.vec_unknown_link
+                            CreatorDetail.Platform.BOOTH -> Res.drawable.vec_booth
+                            CreatorDetail.Platform.FACEBOOK -> Res.drawable.vec_facebook
+                            CreatorDetail.Platform.FANZA -> Res.drawable.vec_fanza
+                            CreatorDetail.Platform.INSTAGRAM -> Res.drawable.vec_instagram
+                            CreatorDetail.Platform.LINE -> Res.drawable.vec_line
+                            CreatorDetail.Platform.PIXIV -> Res.drawable.vec_pixiv
+                            CreatorDetail.Platform.TUMBLR -> Res.drawable.vec_tumblr
+                            CreatorDetail.Platform.TWITTER -> Res.drawable.vec_twitter
+                            CreatorDetail.Platform.YOUTUBE -> Res.drawable.vec_youtube
+                            CreatorDetail.Platform.UNKNOWN -> Res.drawable.vec_unknown_link
                         },
                     ),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -265,10 +227,9 @@ private fun ProfileLinkItem(
     }
 }
 
-@OptIn(ExperimentalCoilApi::class)
 @Composable
 private fun HeaderTop(
-    creatorDetail: FanboxCreatorDetail,
+    creatorDetail: CreatorDetail,
     isSupported: Boolean,
     isFollowed: Boolean,
     onClickSupport: () -> Unit,
@@ -286,7 +247,7 @@ private fun HeaderTop(
                     .aspectRatio(5 / 2f),
                 model = ImageRequest.Builder(LocalPlatformContext.current)
                     .fanboxHeader()
-                    .data(creatorDetail.coverImageUrl ?: creatorDetail.user.iconUrl)
+                    .data(creatorDetail.coverImageUrl ?: creatorDetail.user?.iconUrl)
                     .build(),
                 loading = {
                     FadePlaceHolder()
@@ -308,7 +269,7 @@ private fun HeaderTop(
                 model = ImageRequest.Builder(LocalPlatformContext.current)
                     .fanboxHeader()
                     .error(Res.drawable.im_default_user.asCoilImage())
-                    .data(creatorDetail.user.iconUrl)
+                    .data(creatorDetail.user?.iconUrl)
                     .build(),
                 loading = {
                     FadePlaceHolder()
@@ -333,11 +294,15 @@ private fun HeaderTop(
             )
         },
         measurePolicy = { measurables, constraints ->
-            val iconPlaceable = measurables.find { it.layoutId == "icon" }!!.measure(Constraints.fixed(80.dp.roundToPx(), 80.dp.roundToPx()))
+            val iconPlaceable = measurables.find {
+                it.layoutId == "icon"
+            }!!.measure(Constraints.fixed(80.dp.roundToPx(), 80.dp.roundToPx()))
             val backgroundPlaceable = measurables.find { it.layoutId == "background" }!!.measure(constraints)
-            val buttonPlaceable = measurables.find { it.layoutId == "button" }!!.measure(Constraints.fixedWidth(128.dp.roundToPx()))
+            val buttonPlaceable = measurables.find {
+                it.layoutId == "button"
+            }!!.measure(Constraints.fixedWidth(128.dp.roundToPx()))
             val linksPlaceable = measurables.find { it.layoutId == "links" }!!.measure(
-                Constraints.fixedWidth(constraints.maxWidth - iconPlaceable.width - buttonPlaceable.width - 16.dp.roundToPx() * 4)
+                Constraints.fixedWidth(constraints.maxWidth - iconPlaceable.width - buttonPlaceable.width - 16.dp.roundToPx() * 4),
             )
 
             val backgroundPosition = Alignment.TopCenter.align(
@@ -405,22 +370,20 @@ private fun DescriptionItem(
 }
 
 @Composable
-private fun createTags(creatorDetail: FanboxCreatorDetail): List<String> {
-    return mutableListOf<String>().apply {
-        if (creatorDetail.isSupported) {
-            add(stringResource(Res.string.creator_tag_is_supported))
-        }
+private fun createTags(creatorDetail: CreatorDetail): List<String> = mutableListOf<String>().apply {
+    if (creatorDetail.isSupported) {
+        add(stringResource(Res.string.creator_tag_is_supported))
+    }
 
-        if (creatorDetail.hasAdultContent) {
-            add(stringResource(Res.string.creator_tag_has_adult_content))
-        }
+    if (creatorDetail.hasAdultContent) {
+        add(stringResource(Res.string.creator_tag_has_adult_content))
+    }
 
-        if (creatorDetail.isAcceptingRequest) {
-            add(stringResource(Res.string.creator_tag_is_accepting_request))
-        }
+    if (creatorDetail.isAcceptingRequest) {
+        add(stringResource(Res.string.creator_tag_is_accepting_request))
+    }
 
-        if (creatorDetail.hasBoothShop) {
-            add(stringResource(Res.string.creator_tag_has_booth_shop))
-        }
+    if (creatorDetail.hasBoothShop) {
+        add(stringResource(Res.string.creator_tag_has_booth_shop))
     }
 }

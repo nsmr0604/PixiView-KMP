@@ -9,21 +9,20 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxBell
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.Bell
 import me.matsumo.fanbox.core.repository.FanboxRepository
-import me.matsumo.fanbox.core.repository.UserDataRepository
+import me.matsumo.fanbox.core.repository.SettingRepository
 import me.matsumo.fanbox.feature.library.notify.paging.LibraryNotifyPagingSource
+import kotlin.time.Duration.Companion.seconds
 
-class LibraryNotifyViewModel(
-    private val fanboxRepository: FanboxRepository,
-    private val userDataRepository: UserDataRepository,
-) : ViewModel() {
+class LibraryNotifyViewModel(fanboxRepository: FanboxRepository, settingRepository: SettingRepository) : ViewModel() {
 
-    val screenState = userDataRepository.userData.map {
+    val screenState = settingRepository.setting.map {
         val pager = Pager(
             config = PagingConfig(pageSize = 20),
             initialKey = null,
@@ -37,18 +36,15 @@ class LibraryNotifyViewModel(
         ScreenState.Idle(
             LibraryNotifyUiState(
                 paging = pager,
-                userData = it,
-            )
+                setting = it,
+            ),
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.WhileSubscribed(stopTimeout = 5.seconds),
         initialValue = ScreenState.Loading,
     )
 }
 
 @Stable
-data class LibraryNotifyUiState(
-    val paging: Flow<PagingData<FanboxBell>>,
-    val userData: UserData,
-)
+data class LibraryNotifyUiState(val paging: Flow<PagingData<Bell>>, val setting: Setting)

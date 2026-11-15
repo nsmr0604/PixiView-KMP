@@ -8,16 +8,16 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import me.matsumo.fanbox.core.common.PixiViewConfig
 import me.matsumo.fanbox.core.logs.category.LogCategory
-import me.matsumo.fanbox.core.model.UserData
+import me.matsumo.fanbox.core.model.Setting
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-object LogConfigurator: KoinComponent {
+object LogConfigurator : KoinComponent {
 
     private var filter: LogFilter? = null
     private val sender: LogSender by inject()
 
-    private var _isConfigured = MutableStateFlow(false)
+    private val _isConfigured = MutableStateFlow(false)
     val isConfigured = _isConfigured.asStateFlow()
 
     private val formatter = Json {
@@ -41,12 +41,9 @@ object LogConfigurator: KoinComponent {
         sender.sendLog(log)
     }
 
-    fun configure(
-        pixiViewConfig: PixiViewConfig,
-        userData: UserData,
-    ) {
-        filter = LogFilter(pixiViewConfig, userData, "PixiView")
-        sender.init(userData)
+    fun configure(pixiViewConfig: PixiViewConfig, setting: Setting) {
+        filter = LogFilter(pixiViewConfig, setting, "PixiView")
+        sender.init(setting)
 
         _isConfigured.value = true
     }

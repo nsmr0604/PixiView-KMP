@@ -1,5 +1,3 @@
-@file:Suppress("ModifierReused")
-
 package me.matsumo.fanbox.core.ui
 
 import androidx.compose.animation.AnimatedContent
@@ -7,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -25,6 +22,8 @@ import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
 import me.matsumo.fanbox.core.ui.view.ErrorView
 import me.matsumo.fanbox.core.ui.view.LoadingView
 
+// 既定では同じ Modifier を内側にも適用する既存レイアウトを維持する。解消: https://github.com/matsumo0922/PixiView-KMP/issues/165
+@Suppress("ModifierReused")
 @Composable
 fun <T> AsyncLoadContents(
     screenState: ScreenState<T>,
@@ -32,7 +31,10 @@ fun <T> AsyncLoadContents(
     otherModifier: Modifier = modifier,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     cornerShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    retryAction: () -> Unit = {},
+    retryAction: (() -> Unit)? = null,
+    terminate: (() -> Unit)? = null,
+    loadingMessage: String? = null,
+    loadingMessageColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     content: @Composable (T) -> Unit,
 ) {
     Scaffold(
@@ -43,8 +45,8 @@ fun <T> AsyncLoadContents(
                 hostState = LocalSnackbarHostState.current,
             )
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) {
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) { _ ->
         AnimatedContent(
             modifier = Modifier
                 .clip(cornerShape)
@@ -64,6 +66,8 @@ fun <T> AsyncLoadContents(
                         modifier = otherModifier
                             .fillMaxWidth()
                             .background(Color.Black.copy(alpha = 0.2f)),
+                        message = loadingMessage,
+                        messageColor = loadingMessageColor,
                     )
                 }
 
@@ -72,75 +76,9 @@ fun <T> AsyncLoadContents(
                         modifier = otherModifier.fillMaxWidth(),
                         errorState = state,
                         retryAction = retryAction,
+                        terminate = terminate,
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun <T> AsyncLoadContentsWithoutAnimation(
-    screenState: ScreenState<T>,
-    modifier: Modifier = Modifier,
-    otherModifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surface,
-    cornerShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    retryAction: () -> Unit = {},
-    content: @Composable (T) -> Unit,
-) {
-    Box(
-        modifier = modifier
-            .clip(cornerShape)
-            .background(containerColor),
-    ) {
-        when (screenState) {
-            is ScreenState.Idle -> {
-                content.invoke(screenState.data)
-            }
-            is ScreenState.Loading -> {
-                LoadingView(
-                    modifier = otherModifier
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.2f)),
-                )
-            }
-            is ScreenState.Error -> {
-                ErrorView(
-                    modifier = otherModifier.fillMaxWidth(),
-                    errorState = screenState,
-                    retryAction = retryAction,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun <T> AsyncNoLoadContents(
-    screenState: ScreenState<T>,
-    modifier: Modifier = Modifier,
-    otherModifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surface,
-    cornerShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    retryAction: () -> Unit = {},
-    content: @Composable (T?) -> Unit,
-) {
-    Box(
-        modifier = modifier
-            .clip(cornerShape)
-            .background(containerColor),
-    ) {
-        when (screenState) {
-            is ScreenState.Idle, is ScreenState.Loading -> {
-                content.invoke((screenState as? ScreenState.Idle)?.data)
-            }
-            is ScreenState.Error -> {
-                ErrorView(
-                    modifier = otherModifier.fillMaxWidth(),
-                    errorState = screenState,
-                    retryAction = retryAction,
-                )
             }
         }
     }

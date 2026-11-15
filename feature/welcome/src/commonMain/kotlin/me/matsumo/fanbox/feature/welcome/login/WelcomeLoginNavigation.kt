@@ -2,26 +2,20 @@ package me.matsumo.fanbox.feature.welcome.login
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import me.matsumo.fanbox.core.ui.extensition.navigateWithLog
+import androidx.navigation3.runtime.EntryProviderScope
+import me.matsumo.fanbox.core.model.Destination
 
-const val WelcomeLoginRoute = "welcomeLogin"
-
-fun NavController.navigateToWelcomeLogin() {
-    this.navigateWithLog(WelcomeLoginRoute)
-}
-
-fun NavGraphBuilder.welcomeLoginScreen(
+fun EntryProviderScope<Destination>.welcomeLoginEntry(
     navigateToLoginScreen: () -> Unit,
-    navigateToWelcomePermission: () -> Unit,
+    navigateToHome: () -> Unit,
+    navigateToSetting: () -> Unit,
 ) {
-    composable(WelcomeLoginRoute) {
+    entry<Destination.WelcomeLogin> {
         WelcomeLoginScreen(
             modifier = Modifier.fillMaxSize(),
             navigateToLoginScreen = navigateToLoginScreen,
-            navigateToWelcomePermission = navigateToWelcomePermission,
+            navigateToHome = navigateToHome,
+            navigateToSetting = navigateToSetting,
         )
     }
 }

@@ -1,0 +1,311 @@
+package me.matsumo.fanbox
+
+import androidx.compose.runtime.Stable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dev.icerock.moko.biometry.BiometryAuthenticator
+import dev.icerock.moko.resources.desc.desc
+import io.github.aakira.napier.Napier
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.WhileSubscribed
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import me.matsumo.fanbox.core.billing.BillingClient
+import me.matsumo.fanbox.core.common.PixiViewConfig
+import me.matsumo.fanbox.core.common.util.suspendRunCatching
+import me.matsumo.fanbox.core.datastore.LaunchLogDataStore
+import me.matsumo.fanbox.core.logs.category.BillingLog
+import me.matsumo.fanbox.core.logs.logger.LogConfigurator
+import me.matsumo.fanbox.core.logs.logger.send
+import me.matsumo.fanbox.core.model.DownloadState
+import me.matsumo.fanbox.core.model.GuestSource
+import me.matsumo.fanbox.core.model.LoginState
+import me.matsumo.fanbox.core.model.ScreenState
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.MetaData
+import me.matsumo.fanbox.core.model.updatedBy
+import me.matsumo.fanbox.core.repository.DownloadPostsRepository
+import me.matsumo.fanbox.core.repository.FanboxRepository
+import me.matsumo.fanbox.core.repository.SettingRepository
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_no_data
+import me.matsumo.fanbox.core.resources.home_app_lock_message
+import me.matsumo.fanbox.core.resources.home_app_lock_title
+import me.matsumo.fanbox.core.ui.extensition.getFanboxMetadataDummy
+import org.jetbrains.compose.resources.getString
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
+
+class PixiViewViewModel(
+    private val settingRepository: SettingRepository,
+    private val fanboxRepository: FanboxRepository,
+    downloadPostsRepository: DownloadPostsRepository,
+    private val launchLogDataStore: LaunchLogDataStore,
+    private val billingClient: BillingClient,
+    private val pixiViewConfig: PixiViewConfig,
+) : ViewModel() {
+
+    private val loginStateFlow: MutableSharedFlow<LoginState> = MutableSharedFlow(replay = 1)
+    private val isAppLockedFlow: MutableStateFlow<Boolean> = MutableStateFlow(true)
+    private val metadataFlow: MutableStateFlow<MetaData> = MutableStateFlow(getFanboxMetadataDummy())
+    private val isBillingSyncSucceededFlow: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    // インタースティシャル広告の頻度判定用。永続化せずプロセス内のみ保持する
+    private var interstitialPostCloseCount = 0
+    private var lastInterstitialShownEpochSeconds = 0L
+
+    val screenState = combine(
+        listOf(
+            settingRepository.setting,
+            fanboxRepository.sessionId,
+            downloadPostsRepository.downloadState,
+            metadataFlow,
+            loginStateFlow,
+            isAppLockedFlow,
+            isBillingSyncSucceededFlow,
+        ),
+    ) { flows ->
+        val setting = flows[0] as Setting
+        val sessionId = flows[1] as String?
+        val downloadState = flows[2] as DownloadState
+        val fanboxMetadata = flows[3] as MetaData
+        val loginState = flows[4] as LoginState
+        val isAppLocked = flows[5] as Boolean
+        val isBillingSyncSucceeded = flows[6] as Boolean
+
+        ScreenState.Idle(
+            MainUiState(
+                setting = setting,
+                sessionId = sessionId.orEmpty(),
+                fanboxMetadata = fanboxMetadata,
+                downloadState = downloadState,
+                loginState = loginState,
+                isAppLocked = if (setting.isUseAppLock) isAppLocked else false,
+                isBillingSyncSucceeded = isBillingSyncSucceeded,
+            ),
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(stopTimeout = 5.seconds),
+        initialValue = ScreenState.Loading,
+    )
+
+    /** 起動中の読み込み画面で、guest のロードを待っていることを示すために使う。 */
+    val guestSource: StateFlow<GuestSource> = fanboxRepository.guestSource
+
+    init {
+        launchLogDataStore.launch()
+
+        viewModelScope.launch {
+            fanboxRepository.logoutTrigger.collectLatest {
+                loginStateFlow.emit(LoginState.LoggedOut)
+            }
+        }
+
+        viewModelScope.launch {
+            fanboxRepository.sessionInvalidatedTrigger.collectLatest {
+                loginStateFlow.emit(LoginState.LoggedOut)
+            }
+        }
+
+        viewModelScope.launch {
+            settingRepository.setting.collectLatest {
+                LogConfigurator.configure(
+                    pixiViewConfig = pixiViewConfig,
+                    setting = it,
+                )
+            }
+        }
+
+        viewModelScope.launch {
+            while (isActive) {
+                updateState()
+                delay(10.minutes)
+            }
+        }
+    }
+
+    fun billingClientUpdate() {
+        viewModelScope.launch {
+            isBillingSyncSucceededFlow.emit(false)
+
+            delay(3000.milliseconds)
+
+            suspendRunCatching { billingClient.getPlusStatus() }.onSuccess { plusStatus ->
+                settingRepository.setPlusStatus(plusStatus)
+                isBillingSyncSucceededFlow.emit(true)
+            }
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun recordBillingRetentionPromptShown() {
+        viewModelScope.launch {
+            val setting = settingRepository.setting.first()
+            val shownAtMillis = Clock.System.now().toEpochMilliseconds()
+
+            settingRepository.recordBillingRetentionPromptShown(
+                shownAtMillis = shownAtMillis,
+                unsubscribeDetectedAtMillis = setting.plusUnsubscribeDetectedAtMillis,
+            )
+
+            BillingLog.retentionPromptShown(
+                planType = setting.plusPlanType.name,
+                unsubscribeDetectedAtMillis = setting.plusUnsubscribeDetectedAtMillis,
+                isAnnualOfferShown = setting.shouldShowBillingRetentionAnnualOffer,
+            ).send()
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
+    fun initPixiViewId() {
+        viewModelScope.launch {
+            settingRepository.setPixiViewId(Uuid.random().toString())
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun initFirstLaunchTime() {
+        viewModelScope.launch {
+            settingRepository.setFirstLaunchTime(Clock.System.now().epochSeconds)
+        }
+    }
+
+    /**
+     * ログインしているかを確かめ直す。
+     *
+     * 起動直後は確かめた結果をそのまま使う。ログイン中に確かめられなかっただけなら、ログイン中のままにする。
+     */
+    fun updateState() {
+        viewModelScope.launch { applyLoginState(checkLoginState()) }
+    }
+
+    /** 保存したセッションを捨ててログイン画面へ戻る。ブックマークとブロックの設定は残す。 */
+    fun relogin() {
+        viewModelScope.launch {
+            suspendRunCatching { fanboxRepository.clearSession() }.onFailure { failure ->
+                Napier.w(failure) { "Failed to clear the session before logging in again." }
+            }
+
+            loginStateFlow.emit(LoginState.LoggedOut)
+        }
+    }
+
+    private suspend fun applyLoginState(checkedState: LoginState) {
+        val currentState = loginStateFlow.replayCache.firstOrNull()
+        val nextState = currentState?.updatedBy(checkedState) ?: checkedState
+
+        Napier.d { "update home state. loginState: ${nextState::class.simpleName}" }
+
+        if (nextState is LoginState.LoggedIn) metadataFlow.value = nextState.metaData
+
+        loginStateFlow.emit(nextState)
+    }
+
+    private suspend fun checkLoginState(): LoginState {
+        if (settingRepository.setting.first().isTestUser) return LoginState.LoggedIn(getFanboxMetadataDummy())
+
+        importOldSessionId()
+
+        return fanboxRepository.checkLoginState()
+    }
+
+    /**
+     * Room 導入より前の保存先に残っているセッションを、現在の保存先へ取り込む。
+     *
+     * 読み出しから取り込み元の削除までは保存先の側で直列化する。取り込みの途中で
+     * ログアウトが挟まると、消えたはずのセッションを取り込んで復活させるため。
+     */
+    private suspend fun importOldSessionId() {
+        val isImported = suspendRunCatching { fanboxRepository.importPreRoomSession() }.getOrDefault(false)
+
+        if (!isImported) {
+            Napier.w { "Failed to import the legacy session; keeping the old source for a later retry." }
+        }
+    }
+
+    fun setAppLock(isAppLock: Boolean) {
+        viewModelScope.launch {
+            isAppLockedFlow.emit(if (settingRepository.setting.first().isUseAppLock) isAppLock else false)
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    suspend fun onPostDetailClosedForInterstitialAd(showInterstitialAd: suspend () -> Boolean) {
+        val setting = settingRepository.setting.first()
+        if (!setting.canHandlePostDetailInterstitialAd()) return
+
+        val currentEpochSeconds = Clock.System.now().epochSeconds
+        interstitialPostCloseCount += 1
+
+        val canShowInterstitialAd = shouldShowPostDetailInterstitialAd(
+            postCloseCount = interstitialPostCloseCount,
+            currentEpochSeconds = currentEpochSeconds,
+            lastShownEpochSeconds = lastInterstitialShownEpochSeconds,
+        )
+        if (!canShowInterstitialAd) return
+
+        if (showInterstitialAd()) {
+            interstitialPostCloseCount = 0
+            lastInterstitialShownEpochSeconds = currentEpochSeconds
+        }
+    }
+
+    suspend fun tryToAuthenticate(biometryAuthenticator: BiometryAuthenticator): Boolean = suspendRunCatching {
+        biometryAuthenticator.checkBiometryAuthentication(
+            requestTitle = getString(Res.string.home_app_lock_title).desc(),
+            requestReason = getString(Res.string.home_app_lock_message).desc(),
+            failureButtonText = getString(Res.string.error_no_data).desc(),
+            allowDeviceCredentials = true,
+        )
+    }.fold(
+        onSuccess = { it },
+        onFailure = { false },
+    )
+}
+
+private fun Setting.canHandlePostDetailInterstitialAd(): Boolean = !hasPrivilege && shouldShowInterstitialAd
+
+private fun shouldShowPostDetailInterstitialAd(
+    postCloseCount: Int,
+    currentEpochSeconds: Long,
+    lastShownEpochSeconds: Long,
+): Boolean {
+    val reachesTriggerCount = postCloseCount >= INTERSTITIAL_POST_CLOSE_TRIGGER_COUNT
+    val matchesTriggerInterval = postCloseCount % INTERSTITIAL_POST_CLOSE_TRIGGER_COUNT == 0
+    val elapsedSeconds = currentEpochSeconds - lastShownEpochSeconds
+    val satisfiesCooldown = elapsedSeconds >= INTERSTITIAL_AD_COOLDOWN_SECONDS
+
+    return reachesTriggerCount && matchesTriggerInterval && satisfiesCooldown
+}
+
+/** インタースティシャル広告を表示する投稿詳細クローズ回数。 */
+private const val INTERSTITIAL_POST_CLOSE_TRIGGER_COUNT = 2
+
+/** インタースティシャル広告表示後に再表示を抑制する秒数。 */
+private const val INTERSTITIAL_AD_COOLDOWN_SECONDS = 180L
+
+/** アプリ全体の表示状態をまとめた UI モデル。 */
+@Stable
+data class MainUiState(
+    val setting: Setting,
+    val sessionId: String,
+    val fanboxMetadata: MetaData,
+    val downloadState: DownloadState,
+    val loginState: LoginState,
+    val isAppLocked: Boolean,
+    val isBillingSyncSucceeded: Boolean,
+)

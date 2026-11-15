@@ -4,29 +4,28 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadState
 import app.cash.paging.compose.LazyPagingItems
 import me.matsumo.fanbox.core.model.ScreenState
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_executed
+import me.matsumo.fanbox.core.resources.error_no_data
 import me.matsumo.fanbox.core.ui.extensition.isEmpty
 import me.matsumo.fanbox.core.ui.view.EmptyView
 import me.matsumo.fanbox.core.ui.view.ErrorView
 import me.matsumo.fanbox.core.ui.view.LoadingView
+import me.matsumo.fanbox.core.ui.view.PullToRefreshWrapper
 import org.jetbrains.compose.resources.StringResource
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T : Any> LazyPagingItemsLoadContents(
     lazyPagingItems: LazyPagingItems<T>,
@@ -43,43 +42,36 @@ fun <T : Any> LazyPagingItemsLoadContents(
                 messageRes = emptyMessageRes,
             )
         } else {
-            lazyPagingItems.apply {
-                AnimatedContent(
-                    targetState = loadState.refresh,
-                    transitionSpec = { fadeIn().togetherWith(fadeOut()) },
-                    contentKey = { it::class },
-                    label = "LazyPagingItemsLoadContents",
-                ) {
-                    when (it) {
-                        is LoadState.Loading -> {
-                            LoadingView()
+            AnimatedContent(
+                targetState = lazyPagingItems.loadState.refresh,
+                transitionSpec = { fadeIn().togetherWith(fadeOut()) },
+                contentKey = { it::class },
+                label = "LazyPagingItemsLoadContents",
+            ) {
+                when (it) {
+                    is LoadState.Loading -> {
+                        LoadingView()
+                    }
+
+                    is LoadState.Error -> {
+                        ErrorView(
+                            errorState = ScreenState.Error(Res.string.error_no_data),
+                            retryAction = { lazyPagingItems.refresh() },
+                            terminate = null,
+                        )
+                    }
+
+                    is LoadState.NotLoading -> {
+                        val isRefreshing by remember(lazyPagingItems.loadState) {
+                            derivedStateOf { lazyPagingItems.loadState.refresh is LoadState.Loading }
                         }
 
-                        is LoadState.Error -> {
-                            ErrorView(
-                                errorState = ScreenState.Error(Res.string.error_no_data),
-                                retryAction = { lazyPagingItems.refresh() },
-                            )
-                        }
-
-                        is LoadState.NotLoading -> {
-                            val isRefreshing by remember(lazyPagingItems.loadState) {
-                                derivedStateOf { lazyPagingItems.loadState.refresh is LoadState.Loading }
-                            }
-                            val refreshState = rememberPullRefreshState(
-                                refreshing = isRefreshing,
-                                onRefresh = { lazyPagingItems.refresh() },
-                            )
-
-                            Box(Modifier.pullRefresh(refreshState, isSwipeEnabled)) {
-                                content.invoke(loadState)
-
-                                PullRefreshIndicator(
-                                    refreshing = isRefreshing,
-                                    state = refreshState,
-                                    modifier = Modifier.align(Alignment.TopCenter),
-                                )
-                            }
+                        PullToRefreshWrapper(
+                            onRefresh = { lazyPagingItems.refresh() },
+                            isRefreshing = isRefreshing,
+                            enabled = isSwipeEnabled,
+                        ) {
+                            content.invoke(lazyPagingItems.loadState)
                         }
                     }
                 }

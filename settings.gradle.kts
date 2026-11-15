@@ -1,5 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
+include(":core:resources")
+
 rootProject.name = "PixiView-KMP"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -11,6 +13,7 @@ pluginManagement {
         gradlePluginPortal()
         maven("https://www.jitpack.io")
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        maven("https://maven.pkg.jetbrains.space/public/p/ktor/eap")
     }
 }
 
@@ -21,10 +24,12 @@ dependencyResolutionManagement {
         mavenCentral()
         maven("https://www.jitpack.io")
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        maven("https://maven.pkg.jetbrains.space/public/p/ktor/eap")
     }
 }
 
-include(":composeApp")
+include(":shared")
+include(":androidApp")
 
 include(":core:ui")
 include(":core:billing")
@@ -40,3 +45,4 @@ include(":feature:setting")
 include(":feature:about")
 include(":feature:post")
 include(":feature:creator")
+include(":feature:service")

@@ -1,30 +1,39 @@
 package me.matsumo.fanbox.feature.post.detail.items
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import kotlinx.collections.immutable.ImmutableList
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostDetail.Body
+import me.matsumo.fanbox.core.model.fanbox.PostId
 
+// LazyListScope の項目宣言へ、記事の表示データと画面イベントをそのまま渡す。
+@Suppress("LongParameterList")
 internal fun LazyListScope.postDetailItems(
-    post: FanboxPostDetail,
-    userData: UserData,
+    post: PostDetail,
+    setting: Setting,
+    bookmarkedPostIds: ImmutableList<PostId>,
     onClickPost: (PostId) -> Unit,
     onClickPostLike: (PostId) -> Unit,
-    onClickPostBookmark: (FanboxPost, Boolean) -> Unit,
+    onClickPostBookmark: (Post, Boolean) -> Unit,
     onClickCreator: (CreatorId) -> Unit,
-    onClickImage: (FanboxPostDetail.ImageItem) -> Unit,
-    onClickFile: (FanboxPostDetail.FileItem) -> Unit,
-    onClickDownload: (List<FanboxPostDetail.ImageItem>) -> Unit,
+    onClickImage: (PostDetail.ImageItem) -> Unit,
+    onClickFile: (PostDetail.FileItem) -> Unit,
+    onClickDownload: (List<PostDetail.ImageItem>) -> Unit,
 ) {
     when (val content = post.body) {
-        is FanboxPostDetail.Body.Article -> {
+        is Body.Article -> {
             postDetailArticleHeader(
                 content = content,
-                userData = userData,
+                setting = setting,
                 isAdultContents = post.hasAdultContent,
-                isAutoImagePreview = userData.isAutoImagePreview,
+                isAutoImagePreview = setting.isAutoImagePreview,
+                bookmarkedPostIds = bookmarkedPostIds,
                 onClickPost = onClickPost,
                 onClickPostLike = onClickPostLike,
                 onClickPostBookmark = onClickPostBookmark,
@@ -35,29 +44,75 @@ internal fun LazyListScope.postDetailItems(
             )
         }
 
-        is FanboxPostDetail.Body.Image -> {
+        is Body.Image -> {
             postDetailImageHeader(
                 content = content,
                 isAdultContents = post.hasAdultContent,
-                isOverrideAdultContents = userData.isAllowedShowAdultContents,
-                isTestUser = userData.isTestUser,
+                isOverrideAdultContents = setting.isAllowedShowAdultContents,
+                isTestUser = setting.isTestUser,
                 onClickImage = onClickImage,
                 onClickDownload = onClickDownload,
             )
         }
 
-        is FanboxPostDetail.Body.File -> {
+        is Body.File -> {
             postDetailFileHeader(
                 content = content,
-                isAutoImagePreview = userData.isAutoImagePreview,
+                isAutoImagePreview = setting.isAutoImagePreview,
                 onClickFile = onClickFile,
                 onClickImage = onClickImage,
                 onClickDownload = onClickDownload,
             )
         }
 
-        is FanboxPostDetail.Body.Unknown -> {
-            // do nothing
+        is Body.Video -> postDetailVideoHeader(content)
+
+        is Body.Text, is Body.Html, is Body.Unknown -> item {
+            PostDetailOtherContent(
+                modifier = Modifier.fillMaxWidth(),
+                content = content,
+            )
         }
+    }
+}
+
+// 動画の URL を出し、動画に添えた本文があればその下に出す
+private fun LazyListScope.postDetailVideoHeader(content: Body.Video) {
+    item {
+        PostDetailOtherContent(
+            modifier = Modifier.fillMaxWidth(),
+            content = content,
+        )
+    }
+
+    if (content.text.isNotBlank()) {
+        item {
+            ArticleUrlItem(
+                modifier = Modifier.fillMaxWidth(),
+                url = content.text,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PostDetailOtherContent(
+    content: Body,
+    modifier: Modifier = Modifier,
+) {
+    val url = when (content) {
+        is Body.Text -> content.text
+        is Body.Video -> content.url
+        else -> null
+    }
+
+    // HTML や未知の本文は検証されていないネットワークデータのため描画しない。
+    if (url != null) {
+        ArticleUrlItem(
+            modifier = modifier,
+            url = url,
+        )
+    } else {
+        ArticleUnsupportedItem(modifier)
     }
 }

@@ -2,14 +2,16 @@ package me.matsumo.fanbox.core.repository
 
 import android.content.ContentValues
 import android.content.Context
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
-import io.ktor.client.call.body
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.streams.writePacket
+import androidx.annotation.RequiresApi
+import androidx.core.net.toUri
+import com.hippo.unifile.UniFile
+import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -17,96 +19,153 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import me.matsumo.fanbox.core.common.util.suspendRunCatching
+import me.matsumo.fanbox.core.datastore.SettingDataStore
 import me.matsumo.fanbox.core.logs.category.PostsLog
 import me.matsumo.fanbox.core.logs.logger.send
-import me.matsumo.fanbox.core.model.fanbox.FanboxDownloadItems
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import me.matsumo.fanbox.core.model.DownloadFileType
+import me.matsumo.fanbox.core.model.DownloadState
+import me.matsumo.fanbox.core.model.FanboxDownloadItems
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostId
 import java.io.File
+import java.util.Locale
+import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 class DownloadPostsRepositoryImpl(
     private val context: Context,
+    private val userDataStore: SettingDataStore,
     private val fanboxRepository: FanboxRepository,
     private val scope: CoroutineScope,
-): DownloadPostsRepository {
+) : DownloadPostsRepository {
 
-    private var _reservingPosts = MutableStateFlow(emptyList<FanboxDownloadItems>())
+    private val _reservingPosts = MutableStateFlow(emptyList<FanboxDownloadItems>())
+    private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.None)
 
     override val reservingPosts: StateFlow<List<FanboxDownloadItems>> = _reservingPosts.asStateFlow()
+    override val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
     init {
         scope.launch {
             while (isActive) {
-                delay(500)
+                delay(500.milliseconds)
 
-                val downloadItems = _reservingPosts.getAndUpdate { it.drop(1) }.firstOrNull() ?: continue
-                val items = downloadItems.items.map {
-                    async { downloadItem(it) }
+                val downloadItems = _reservingPosts.getAndUpdate { it.drop(1) }.firstOrNull()
+                if (downloadItems == null) {
+                    _downloadState.value = DownloadState.None
+                    continue
                 }
 
-                val results = items.awaitAll()
+                suspendRunCatching {
+                    val items = when (val type = downloadItems.requestType) {
+                        FanboxDownloadItems.RequestType.File -> downloadItems.items
 
-                for ((item, channel) in results.filterNotNull()) {
-                    runCatching {
-                        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(item.extension)
-                        val uri = getUri(context, "${item.name}.${item.extension}", getParentDirName(downloadItems.requestType), mime.orEmpty())
-                        val outputStream = context.contentResolver.openOutputStream(uri!!)!!
+                        FanboxDownloadItems.RequestType.Image -> downloadItems.items
 
-                        while (!channel.isClosedForRead) {
-                            outputStream.writePacket(channel.readRemaining(DEFAULT_BUFFER_SIZE.toLong()))
+                        is FanboxDownloadItems.RequestType.WholePost -> {
+                            val postDetail = fanboxRepository.getPostDetail(downloadItems.postId)
+                            val images = postDetail.body.imageItems.mapIndexed { index, image ->
+                                image.toDownloadItem(index)
+                            }
+                            val files = postDetail.body.fileItems.map { it.toDownloadItem() }
+
+                            images + if (type.isIgnoreFiles) emptyList() else files
                         }
                     }
-                }
 
-                downloadItems.callback.invoke()
+                    val itemProgresses = MutableList(items.size) { MutableStateFlow(0f) }
+                    val data = items.mapIndexed { index, item ->
+                        async {
+                            downloadItem(item) { progress ->
+                                itemProgresses[index].value = progress
+
+                                _downloadState.value = DownloadState.Downloading(
+                                    items = downloadItems,
+                                    progress = itemProgresses.sumOf { it.value.toDouble() }.toFloat() / items.size,
+                                )
+                            }
+                        }
+                    }
+
+                    saveFiles(downloadItems, data.awaitAll().filterNotNull())
+                }
             }
         }
     }
 
-    override fun requestDownloadPost(postId: PostId, callback: () -> Unit) {
+    override fun cancelDownload(key: String) {
+        _reservingPosts.update { posts ->
+            posts.filter { it.key != key }
+        }
+    }
+
+    override fun requestDownloadPost(post: Post, isIgnoreFiles: Boolean) {
         scope.launch {
-            val postDetail = fanboxRepository.getPost(postId)
-            val images = postDetail.body.imageItems.map { it.toDownloadItem() }
-            val files = postDetail.body.fileItems.map { it.toDownloadItem() }
             val items = FanboxDownloadItems(
-                items = images + files,
-                requestType = FanboxDownloadItems.RequestType.Post(postDetail.user.name),
-                callback = callback,
+                postId = post.id,
+                title = post.title,
+                items = emptyList(),
+                requestType = FanboxDownloadItems.RequestType.WholePost(post, isIgnoreFiles),
+                key = Uuid.random().toHexString(),
             )
 
             _reservingPosts.update { it + items }
         }
     }
 
-    override fun requestDownloadImages(images: List<FanboxPostDetail.ImageItem>, callback: () -> Unit) {
+    override fun requestDownloadImages(
+        postId: PostId,
+        title: String,
+        images: List<PostDetail.ImageItem>,
+    ) {
         val items = FanboxDownloadItems(
-            items = images.map { it.toDownloadItem() },
+            postId = postId,
+            title = title,
+            items = images.mapIndexed { index, image -> image.toDownloadItem(index) },
             requestType = FanboxDownloadItems.RequestType.Image,
-            callback = callback,
+            key = Uuid.random().toHexString(),
         )
 
         _reservingPosts.update { it + items }
     }
 
-    override fun requestDownloadFiles(files: List<FanboxPostDetail.FileItem>, callback: () -> Unit) {
+    override fun requestDownloadFiles(
+        postId: PostId,
+        title: String,
+        files: List<PostDetail.FileItem>,
+    ) {
         val items = FanboxDownloadItems(
+            postId = postId,
+            title = title,
             items = files.map { it.toDownloadItem() },
             requestType = FanboxDownloadItems.RequestType.File,
-            callback = callback,
+            key = Uuid.random().toHexString(),
         )
 
         _reservingPosts.update { it + items }
     }
 
-    private fun FanboxPostDetail.ImageItem.toDownloadItem(): FanboxDownloadItems.Item {
+    override suspend fun getSaveDirectory(requestType: FanboxDownloadItems.RequestType): String = (getParentFile(requestType) ?: getOldParentFile(requestType, true))?.filePath ?: "Unknown"
+
+    private fun PostDetail.ImageItem.toDownloadItem(
+        index: Int = -1,
+    ): FanboxDownloadItems.Item {
+        val namePrefix = if (index >= 0) "image-%03d".format(Locale.ROOT, index) else "image"
         return FanboxDownloadItems.Item(
             postId = postId,
-            name = "image-$postId-$id",
+            itemId = id,
+            name = "$namePrefix-${postId.value}-${id.value}",
             extension = extension,
             originalUrl = originalUrl,
             thumbnailUrl = thumbnailUrl,
@@ -114,90 +173,189 @@ class DownloadPostsRepositoryImpl(
         )
     }
 
-    private fun FanboxPostDetail.FileItem.toDownloadItem(): FanboxDownloadItems.Item {
-        return FanboxDownloadItems.Item(
-            postId = postId,
-            name = "file-$postId-$id",
-            extension = extension,
-            originalUrl = url,
-            thumbnailUrl = "",
-            type = FanboxDownloadItems.Item.Type.File,
-        )
-    }
+    private fun PostDetail.FileItem.toDownloadItem(): FanboxDownloadItems.Item = FanboxDownloadItems.Item(
+        postId = postId,
+        itemId = id,
+        name = "file-${postId.value}-${id.value}",
+        extension = extension,
+        originalUrl = url,
+        thumbnailUrl = "",
+        type = FanboxDownloadItems.Item.Type.File,
+    )
 
-    private suspend fun downloadItem(item: FanboxDownloadItems.Item): Pair<FanboxDownloadItems.Item, ByteReadChannel>? {
-        return suspendRunCatching {
-            val url = if (item.extension.lowercase() == "gif") item.originalUrl else item.thumbnailUrl
-            item to fanboxRepository.download(url).body<ByteReadChannel>()
-        }.also {
-            PostsLog.download(
-                type = "unknown",
-                postId = item.postId.value,
-                itemId = item.name,
-                extension = item.extension,
-                isSuccess = it.isSuccess,
-            ).send()
-        }.getOrNull()
-    }
+    private suspend fun downloadItem(item: FanboxDownloadItems.Item, onDownload: (Float) -> Unit): Pair<FanboxDownloadItems.Item, File>? = suspendRunCatching {
+        val fileType = userDataStore.setting.first().downloadFileType
+        val url = if (item.extension.lowercase() != "gif" || fileType == DownloadFileType.ORIGINAL) item.originalUrl else item.thumbnailUrl
 
-    private fun getUri(context: Context, name: String, child: String, mimeType: String = ""): Uri? {
-        val contentUri: Uri
-        val parent: String
+        val tmpFile = File(context.cacheDir, "tmp-${item.name}.${item.extension}")
 
-        when {
-            mimeType.contains("image") -> {
-                contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                parent = Environment.DIRECTORY_PICTURES
+        // チャンクを追記していくため、中断した前回のダウンロードが残っていると先頭に
+        // 混入する。書き始める前に必ず消す。
+        tmpFile.delete()
+
+        try {
+            fanboxRepository.download(
+                url = url,
+                onDownload = onDownload,
+                onChunk = { chunk -> tmpFile.appendBytes(chunk) },
+            )
+        } catch (e: Throwable) {
+            // 失敗とキャンセルのどちらでも書きかけを残さない。CancellationException も
+            // ここを通るため、削除してからそのまま再送出する。
+            tmpFile.delete()
+            throw e
+        }
+
+        onDownload.invoke(1f)
+
+        item to tmpFile
+    }.onFailure {
+        Napier.e(it) { "Failed to download item: ${item.name}" }
+    }.also {
+        PostsLog.download(
+            type = "unknown",
+            postId = item.postId.value,
+            itemId = item.name,
+            extension = item.extension,
+            isSuccess = it.isSuccess,
+        ).send()
+    }.getOrNull()
+
+    private fun getOldParentFile(
+        requestType: FanboxDownloadItems.RequestType,
+        isDryRun: Boolean = false,
+    ): UniFile? {
+        val environmentDir = when (requestType) {
+            is FanboxDownloadItems.RequestType.Image -> Environment.DIRECTORY_PICTURES
+            is FanboxDownloadItems.RequestType.File -> Environment.DIRECTORY_DOWNLOADS
+            is FanboxDownloadItems.RequestType.WholePost -> Environment.DIRECTORY_DOWNLOADS
+        }
+
+        val child = when (requestType) {
+            is FanboxDownloadItems.RequestType.Image -> "FANBOX"
+            is FanboxDownloadItems.RequestType.File -> "FANBOX"
+            is FanboxDownloadItems.RequestType.WholePost -> requestType.post?.user?.name ?: "UnknownCreator"
+        }
+
+        val dir = File("${Environment.getExternalStorageDirectory().path}/$environmentDir", "FANBOX")
+        val childDir = File(dir, child)
+
+        if (!isDryRun) {
+            if (!dir.exists()) {
+                if (!dir.mkdir()) {
+                    return null
+                }
             }
-            mimeType.contains("video") -> {
-                contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                parent = Environment.DIRECTORY_PICTURES
-            }
-            else -> {
-                contentUri = MediaStore.Files.getContentUri("external")
-                parent = Environment.DIRECTORY_DOWNLOADS
+
+            if (child.isNotBlank() && !childDir.exists()) {
+                if (!childDir.mkdir()) {
+                    return null
+                }
             }
         }
 
-        val contentResolver = context.contentResolver
-        val contentValues = ContentValues().apply {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val path = when {
-                    mimeType.contains("photoshop") -> MediaStore.Files.FileColumns.RELATIVE_PATH
-                    mimeType.contains("image") -> MediaStore.Images.ImageColumns.RELATIVE_PATH
-                    mimeType.contains("video") -> MediaStore.Video.VideoColumns.RELATIVE_PATH
-                    mimeType.contains("audio") -> MediaStore.Audio.AudioColumns.RELATIVE_PATH
-                    else -> MediaStore.Files.FileColumns.RELATIVE_PATH
-                }
-
-                put(path, "$parent/FANBOX" + if (child.isBlank()) "" else "/$child")
-            } else {
-                val path = Environment.getExternalStorageDirectory().path + "/$parent/FANBOX" + if (child.isEmpty()) "" else "/$child"
-                val dir = File(Environment.getExternalStorageDirectory().path + "/$parent", "FANBOX")
-                val childDir = File(dir, child)
-
-                if (!dir.exists()) {
-                    dir.mkdir()
-                }
-
-                if (child.isNotBlank() && !childDir.exists()) {
-                    childDir.mkdir()
-                }
-
-                put(MediaStore.Images.ImageColumns.DATA, path + name)
-            }
-
-            put(MediaStore.Images.ImageColumns.DISPLAY_NAME, name)
-            put(MediaStore.Images.ImageColumns.DATE_TAKEN, System.currentTimeMillis())
-        }
-
-        return contentResolver.insert(contentUri, contentValues)
+        return UniFile.fromFile(childDir)!!
     }
 
-    private fun getParentDirName(requestType: FanboxDownloadItems.RequestType?): String = when (requestType) {
-        is FanboxDownloadItems.RequestType.Image -> "FANBOX"
-        is FanboxDownloadItems.RequestType.File -> "FANBOX"
-        is FanboxDownloadItems.RequestType.Post -> requestType.creatorName
-        else -> "FANBOX"
+    private suspend fun getParentFile(requestType: FanboxDownloadItems.RequestType): UniFile? {
+        val userData = userDataStore.setting.first()
+
+        return when (requestType) {
+            is FanboxDownloadItems.RequestType.Image -> {
+                if (userData.imageSaveDirectory.isBlank()) return null
+                UniFile.fromUri(context, userData.imageSaveDirectory.toUri())
+            }
+
+            is FanboxDownloadItems.RequestType.File -> {
+                if (userData.fileSaveDirectory.isBlank()) return null
+                UniFile.fromUri(context, userData.fileSaveDirectory.toUri())
+            }
+
+            is FanboxDownloadItems.RequestType.WholePost -> {
+                if (userData.postSaveDirectory.isBlank()) return null
+                val parentFile = UniFile.fromUri(context, userData.postSaveDirectory.toUri())
+                parentFile.createDirectory(requestType.post?.user?.name ?: "UnknownCreator")
+            }
+        }
+    }
+
+    private suspend fun saveFiles(downloadItems: FanboxDownloadItems, results: List<Pair<FanboxDownloadItems.Item, File>?>) {
+        for ((item, tmpFile) in results.filterNotNull()) {
+            runCatching {
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(item.extension)
+                val selectedLocation = getParentFile(downloadItems.requestType) ?: getOldParentFile(downloadItems.requestType)
+                val name = "${item.name}.${item.extension.ifBlank { "jpeg" }}"
+
+                when {
+                    selectedLocation != null -> {
+                        saveFileToSelectedLocation(name, tmpFile, selectedLocation, mimeType)
+                    }
+
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                        saveFileAfterSdkQ(name, tmpFile, mimeType, downloadItems.requestType)
+                    }
+                }
+
+                tmpFile.delete()
+                delay(500.milliseconds)
+            }.onFailure {
+                Napier.e(it) { "Failed to download item: ${item.name}" }
+            }
+        }
+    }
+
+    private suspend fun saveFileToSelectedLocation(
+        name: String,
+        tmpFile: File,
+        parentFile: UniFile,
+        mimeType: String?,
+    ) = suspendCancellableCoroutine<Uri> { continuation ->
+        val file = parentFile.createFile(name)
+
+        context.contentResolver.openOutputStream(file.uri)!!.use {
+            tmpFile.inputStream().use { input ->
+                input.copyTo(it)
+            }
+        }
+
+        MediaScannerConnection.scanFile(context, arrayOf(parentFile.filePath), arrayOf(mimeType)) { _, uri ->
+            continuation.resume(uri)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private suspend fun saveFileAfterSdkQ(
+        fileName: String,
+        tmpFile: File,
+        mimeType: String?,
+        requestType: FanboxDownloadItems.RequestType,
+    ) = suspendCancellableCoroutine { continuation ->
+        val path = getOldParentFile(requestType, true)?.filePath
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+            put(MediaStore.Images.Media.RELATIVE_PATH, path)
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+
+        val resolver = context.contentResolver
+        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val itemUri = resolver.insert(collection, values)
+
+        if (itemUri != null) {
+            resolver.openOutputStream(itemUri)?.use {
+                tmpFile.inputStream().use { input ->
+                    input.copyTo(it)
+                }
+            }
+
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(itemUri, values, null, null)
+
+            continuation.resume(itemUri)
+        } else {
+            error("Failed to save file.")
+        }
     }
 }

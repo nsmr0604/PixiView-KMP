@@ -29,13 +29,14 @@ actual fun SimpleAlertDialog(
     negativeText: String?,
     onClickPositive: () -> Unit,
     onClickNegative: () -> Unit,
-    isCaution: Boolean
+    isCaution: Boolean,
+    modifier: Modifier,
 ) {
     Dialog(
         onDismissRequest = onClickNegative,
     ) {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
                 .clip(RoundedCornerShape(16.dp))

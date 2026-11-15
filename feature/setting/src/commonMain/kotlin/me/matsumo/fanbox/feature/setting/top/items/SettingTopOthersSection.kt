@@ -4,26 +4,29 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.ui.Res
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.setting_top_information_privacy_policy
+import me.matsumo.fanbox.core.resources.setting_top_information_team_of_service
+import me.matsumo.fanbox.core.resources.setting_top_others
+import me.matsumo.fanbox.core.resources.setting_top_others_developer_mode
+import me.matsumo.fanbox.core.resources.setting_top_others_developer_mode_description
+import me.matsumo.fanbox.core.resources.setting_top_others_logout
+import me.matsumo.fanbox.core.resources.setting_top_others_logout_description
+import me.matsumo.fanbox.core.resources.setting_top_others_open_source_license
+import me.matsumo.fanbox.core.resources.setting_top_others_open_source_license_description
+import me.matsumo.fanbox.core.resources.setting_top_others_reshow_reveal
+import me.matsumo.fanbox.core.resources.setting_top_others_reshow_reveal_description
 import me.matsumo.fanbox.core.ui.component.SettingSwitchItem
 import me.matsumo.fanbox.core.ui.component.SettingTextItem
-import me.matsumo.fanbox.core.ui.setting_top_information_privacy_policy
-import me.matsumo.fanbox.core.ui.setting_top_information_team_of_service
-import me.matsumo.fanbox.core.ui.setting_top_others
-import me.matsumo.fanbox.core.ui.setting_top_others_developer_mode
-import me.matsumo.fanbox.core.ui.setting_top_others_developer_mode_description
-import me.matsumo.fanbox.core.ui.setting_top_others_logout
-import me.matsumo.fanbox.core.ui.setting_top_others_logout_description
-import me.matsumo.fanbox.core.ui.setting_top_others_open_source_license
-import me.matsumo.fanbox.core.ui.setting_top_others_open_source_license_description
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun SettingTopOthersSection(
-    userData: UserData,
+    setting: Setting,
     onClickTeamsOfService: () -> Unit,
     onClickPrivacyPolicy: () -> Unit,
+    onClickReshowReveal: () -> Unit,
     onClickLogout: () -> Unit,
     onClickOpenSourceLicense: () -> Unit,
     onClickDeveloperMode: (Boolean) -> Unit,
@@ -49,6 +52,13 @@ internal fun SettingTopOthersSection(
 
         SettingTextItem(
             modifier = Modifier.fillMaxWidth(),
+            title = Res.string.setting_top_others_reshow_reveal,
+            description = Res.string.setting_top_others_reshow_reveal_description,
+            onClick = { onClickReshowReveal.invoke() },
+        )
+
+        SettingTextItem(
+            modifier = Modifier.fillMaxWidth(),
             title = Res.string.setting_top_others_logout,
             description = Res.string.setting_top_others_logout_description,
             onClick = onClickLogout,
@@ -65,8 +75,8 @@ internal fun SettingTopOthersSection(
             modifier = Modifier.fillMaxWidth(),
             title = Res.string.setting_top_others_developer_mode,
             description = Res.string.setting_top_others_developer_mode_description,
-            value = userData.isDeveloperMode,
-            onValueChanged = onClickDeveloperMode,
+            value = setting.isDeveloperMode,
+            onValueChange = onClickDeveloperMode,
         )
     }
 }

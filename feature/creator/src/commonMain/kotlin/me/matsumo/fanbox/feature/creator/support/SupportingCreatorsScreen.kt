@@ -25,18 +25,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorPlan
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.CreatorPlan
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_no_data
+import me.matsumo.fanbox.core.resources.error_no_data_supported
+import me.matsumo.fanbox.core.resources.library_navigation_supporting
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
-import me.matsumo.fanbox.core.ui.Res
 import me.matsumo.fanbox.core.ui.component.PixiViewTopBar
-import me.matsumo.fanbox.core.ui.error_no_data
-import me.matsumo.fanbox.core.ui.error_no_data_supported
 import me.matsumo.fanbox.core.ui.extensition.LocalNavigationType
 import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
 import me.matsumo.fanbox.core.ui.extensition.PixiViewNavigationType
 import me.matsumo.fanbox.core.ui.extensition.drawVerticalScrollbar
-import me.matsumo.fanbox.core.ui.library_navigation_supporting
 import me.matsumo.fanbox.core.ui.view.EmptyView
 import me.matsumo.fanbox.feature.creator.support.item.SupportingCreatorItem
 import org.jetbrains.compose.resources.stringResource
@@ -45,8 +46,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun SupportingCreatorsRoute(
-    navigateToCreatorPosts: (CreatorId) -> Unit,
-    navigateToFanCard: (CreatorId) -> Unit,
+    navigateTo: (Destination) -> Unit,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SupportingCreatorsViewModel = koinViewModel(),
@@ -58,13 +58,14 @@ internal fun SupportingCreatorsRoute(
         modifier = modifier,
         screenState = screenState,
         retryAction = { viewModel.fetch() },
+        terminate = { terminate.invoke() },
     ) { uiState ->
         SupportingCreatorsScreen(
             modifier = Modifier.fillMaxSize(),
             supportedCreators = uiState.supportedPlans.toImmutableList(),
-            onClickPlanDetail = { navigatorExtension.navigateToWebPage(it, SupportingCreatorsRoute) },
-            onClickFanCard = navigateToFanCard,
-            onClickCreatorPosts = navigateToCreatorPosts,
+            onClickPlanDetail = { navigatorExtension.navigateToWebPage(it, "") },
+            onClickFanCard = { navigateTo(Destination.FanCard(it)) },
+            onClickCreatorPosts = { navigateTo(Destination.CreatorTop(it, true)) },
             terminate = terminate,
         )
     }
@@ -73,7 +74,7 @@ internal fun SupportingCreatorsRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SupportingCreatorsScreen(
-    supportedCreators: ImmutableList<FanboxCreatorPlan>,
+    supportedCreators: ImmutableList<CreatorPlan>,
     onClickPlanDetail: (String) -> Unit,
     onClickFanCard: (CreatorId) -> Unit,
     onClickCreatorPosts: (CreatorId) -> Unit,

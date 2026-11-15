@@ -8,23 +8,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
 import me.matsumo.fanbox.core.ui.component.AdultContentThumbnail
 import me.matsumo.fanbox.core.ui.extensition.LocalFanboxMetadata
+import sh.calvin.autolinktext.rememberAutoLinkText
 
+// LazyListScope の項目宣言へ、記事の表示データと画面イベントをそのまま渡す。
+@Suppress("LongParameterList")
 internal fun LazyListScope.postDetailImageHeader(
-    content: FanboxPostDetail.Body.Image,
+    content: PostDetail.Body.Image,
     isAdultContents: Boolean,
     isOverrideAdultContents: Boolean,
     isTestUser: Boolean,
-    onClickImage: (FanboxPostDetail.ImageItem) -> Unit,
-    onClickDownload: (List<FanboxPostDetail.ImageItem>) -> Unit,
+    onClickImage: (PostDetail.ImageItem) -> Unit,
+    onClickDownload: (List<PostDetail.ImageItem>) -> Unit,
 ) {
     items(content.images) {
         val metadata = LocalFanboxMetadata.current
 
-        if (!isOverrideAdultContents && !metadata.context.user.showAdultContent && isAdultContents) {
+        val shouldHideAdultContent = !isOverrideAdultContents && metadata.context?.user?.showAdultContent == false && isAdultContents
+        if (shouldHideAdultContent) {
             AdultContentThumbnail(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -47,9 +52,8 @@ internal fun LazyListScope.postDetailImageHeader(
         item {
             Text(
                 modifier = Modifier.padding(16.dp),
-                text = content.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                text = AnnotatedString.rememberAutoLinkText(content.text),
+                style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
             )
         }
     }

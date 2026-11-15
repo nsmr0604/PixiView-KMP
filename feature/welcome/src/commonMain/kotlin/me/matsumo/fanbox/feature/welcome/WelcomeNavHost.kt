@@ -1,5 +1,6 @@
 package me.matsumo.fanbox.feature.welcome
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -7,58 +8,46 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
-import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.compose.BindEffect
 import dev.icerock.moko.permissions.compose.PermissionsControllerFactory
 import dev.icerock.moko.permissions.compose.rememberPermissionsControllerFactory
-import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import me.matsumo.fanbox.core.common.util.format
 import me.matsumo.fanbox.core.logs.category.WelcomeLog
 import me.matsumo.fanbox.core.logs.logger.send
-import me.matsumo.fanbox.core.ui.animation.NavigateAnimation
+import me.matsumo.fanbox.core.model.Destination
 import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
-import me.matsumo.fanbox.core.ui.extensition.popBackStackWithResult
+import me.matsumo.fanbox.core.ui.navigation.PixiViewNavDisplay
+import me.matsumo.fanbox.core.ui.navigation.destinationEntryProvider
+import me.matsumo.fanbox.core.ui.navigation.rememberPixiViewNavigator
 import me.matsumo.fanbox.core.ui.view.navigateToSimpleAlertDialog
-import me.matsumo.fanbox.core.ui.view.simpleAlertDialogDialog
-import me.matsumo.fanbox.feature.welcome.login.WelcomeLoginRoute
-import me.matsumo.fanbox.feature.welcome.login.navigateToWelcomeLogin
-import me.matsumo.fanbox.feature.welcome.login.welcomeLoginScreen
-import me.matsumo.fanbox.feature.welcome.permission.WelcomePermissionRoute
-import me.matsumo.fanbox.feature.welcome.permission.navigateToWelcomePermission
-import me.matsumo.fanbox.feature.welcome.permission.welcomePermissionScreen
-import me.matsumo.fanbox.feature.welcome.top.WelcomeTopRoute
-import me.matsumo.fanbox.feature.welcome.top.welcomeTopScreen
-import me.matsumo.fanbox.feature.welcome.web.navigateToWelcomeWeb
-import me.matsumo.fanbox.feature.welcome.web.welcomeWebScreen
+import me.matsumo.fanbox.core.ui.view.simpleAlertDialogEntry
+import me.matsumo.fanbox.feature.welcome.login.welcomeLoginEntry
+import me.matsumo.fanbox.feature.welcome.top.welcomeTopEntry
+import me.matsumo.fanbox.feature.welcome.web.welcomeWebEntry
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 @Composable
 fun WelcomeNavHost(
     onComplete: () -> Unit,
+    navigateToSetting: () -> Unit,
     isAgreedTeams: Boolean,
-    isAllowedPermission: Boolean,
     isLoggedIn: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val navController = rememberNavController()
-    val scope = rememberCoroutineScope()
-
     val factory: PermissionsControllerFactory = rememberPermissionsControllerFactory()
-    val controller: PermissionsController =
-        remember(factory) { factory.createPermissionsController() }
+    val controller: PermissionsController = remember(factory) { factory.createPermissionsController() }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val startDestination = when {
-        !isAgreedTeams -> WelcomeTopRoute
-        !isLoggedIn -> WelcomeLoginRoute
-        !isAllowedPermission -> WelcomePermissionRoute
-        else -> WelcomeTopRoute
+        !isAgreedTeams -> Destination.WelcomeTop
+        !isLoggedIn -> Destination.WelcomeLogin
+        else -> Destination.WelcomeTop
     }
+    val navigator = rememberPixiViewNavigator(startDestination)
 
     val onboardingStartTime = Clock.System.now()
 
@@ -72,59 +61,47 @@ fun WelcomeNavHost(
                 )
             },
         ) {
-            NavHost(
-                modifier = modifier,
-                navController = navController,
-                startDestination = startDestination,
-                enterTransition = { NavigateAnimation.Horizontal.enter },
-                exitTransition = { NavigateAnimation.Horizontal.exit },
-                popEnterTransition = { NavigateAnimation.Horizontal.popEnter },
-                popExitTransition = { NavigateAnimation.Horizontal.popExit },
-            ) {
-                welcomeTopScreen(
-                    navigateToWelcomeLogin = {
-                        WelcomeLog.firstOpen().send()
-                        navController.navigateToWelcomeLogin()
-                    },
-                )
+            PixiViewNavDisplay(
+                modifier = Modifier.fillMaxSize(),
+                navigator = navigator,
+                entryProvider = destinationEntryProvider {
+                    welcomeTopEntry(
+                        navigateToWelcomeLogin = {
+                            WelcomeLog.firstOpen().send()
+                            navigator.navigate(Destination.WelcomeLogin)
+                        },
+                        navigateToSetting = navigateToSetting,
+                    )
 
-                welcomeLoginScreen(
-                    navigateToLoginScreen = { navController.navigateToWelcomeWeb() },
-                    navigateToWelcomePermission = {
-                        scope.launch {
-                            if (controller.isPermissionGranted(Permission.STORAGE)) {
-                                onComplete.invoke()
-                            } else {
-                                navController.navigateToWelcomePermission()
-                            }
-                        }
-                    },
-                )
+                    welcomeLoginEntry(
+                        navigateToLoginScreen = { navigator.navigate(Destination.WelcomeWeb) },
+                        navigateToHome = {
+                            val onboardingEndTime = Clock.System.now()
 
-                welcomeWebScreen(
-                    navigateToLoginAlert = { navController.navigateToSimpleAlertDialog(it) },
-                    navigateToLoginDebugAlert = { contents, onPositive -> navController.navigateToSimpleAlertDialog(contents, onPositive) },
-                    terminate = { navController.popBackStack() }
-                )
+                            WelcomeLog.completedOnboarding(
+                                startAt = onboardingStartTime.format("%Y-%m-%d %H:%M:%S"),
+                                endAt = onboardingEndTime.format("%Y-%m-%d %H:%M:%S"),
+                                neededTime = onboardingEndTime.epochSeconds - onboardingStartTime.epochSeconds,
+                            ).send()
 
-                welcomePermissionScreen(
-                    navigateToHome = {
-                        val onboardingEndTime = Clock.System.now()
+                            onComplete.invoke()
+                        },
+                        navigateToSetting = navigateToSetting,
+                    )
 
-                        WelcomeLog.completedOnboarding(
-                            startAt = onboardingStartTime.format("%Y-%m-%d %H:%M:%S"),
-                            endAt = onboardingEndTime.format("%Y-%m-%d %H:%M:%S"),
-                            neededTime = onboardingEndTime.epochSeconds - onboardingStartTime.epochSeconds,
-                        ).send()
+                    welcomeWebEntry(
+                        navigateToLoginAlert = { navigator.navigateToSimpleAlertDialog(it) },
+                        navigateToLoginDebugAlert = { contents, onPositive ->
+                            navigator.navigateToSimpleAlertDialog(contents, onPositive)
+                        },
+                        terminate = navigator::back,
+                    )
 
-                        onComplete.invoke()
-                    },
-                )
-
-                simpleAlertDialogDialog(
-                    onResult = { navController.popBackStackWithResult(it) }
-                )
-            }
+                    simpleAlertDialogEntry(
+                        onResult = { navigator.backWithResult(it) },
+                    )
+                },
+            )
         }
 
         BindEffect(controller)

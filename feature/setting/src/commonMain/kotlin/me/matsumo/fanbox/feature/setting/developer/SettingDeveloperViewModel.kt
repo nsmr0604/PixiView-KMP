@@ -1,19 +1,14 @@
 package me.matsumo.fanbox.feature.setting.developer
 
-import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.common.PixiViewConfig
-import me.matsumo.fanbox.core.repository.UserDataRepository
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import me.matsumo.fanbox.core.common.PixiViewConfig
+import me.matsumo.fanbox.core.repository.SettingRepository
 
-class SettingDeveloperViewModel(
-    private val pixiViewConfig: PixiViewConfig,
-    private val userDataRepository: UserDataRepository,
-) : ViewModel() {
+class SettingDeveloperViewModel(private val pixiViewConfig: PixiViewConfig, private val settingRepository: SettingRepository) : ViewModel() {
 
-    fun submitPassword(password: String): Boolean {
+    suspend fun submitPassword(password: String): Boolean {
         if (password == pixiViewConfig.developerPassword) {
-            viewModelScope.launch { userDataRepository.setDeveloperMode(true) }
+            settingRepository.setDeveloperMode(true)
             return true
         }
 

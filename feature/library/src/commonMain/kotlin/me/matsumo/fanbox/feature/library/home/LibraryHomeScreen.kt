@@ -1,7 +1,7 @@
 package me.matsumo.fanbox.feature.library.home
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
@@ -31,33 +32,28 @@ import app.cash.paging.compose.collectAsLazyPagingItems
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.SimpleAlertContents
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_no_data_following
+import me.matsumo.fanbox.core.resources.error_no_data_supported
+import me.matsumo.fanbox.core.resources.home_tab_home
+import me.matsumo.fanbox.core.resources.home_tab_supported
 import me.matsumo.fanbox.core.ui.LazyPagingItemsLoadContents
-import me.matsumo.fanbox.core.ui.Res
 import me.matsumo.fanbox.core.ui.appName
-import me.matsumo.fanbox.core.ui.error_no_data_following
-import me.matsumo.fanbox.core.ui.error_no_data_supported
 import me.matsumo.fanbox.core.ui.extensition.LocalNavigationType
 import me.matsumo.fanbox.core.ui.extensition.PixiViewNavigationType
-import me.matsumo.fanbox.core.ui.home_tab_home
-import me.matsumo.fanbox.core.ui.home_tab_supported
-import me.matsumo.fanbox.core.ui.view.SimpleAlertContents
 import me.matsumo.fanbox.feature.library.home.items.LibraryHomeIdleSection
 import me.matsumo.fanbox.feature.library.home.items.LibrarySupportedIdleSection
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LibraryHomeScreen(
     openDrawer: () -> Unit,
-    navigateToPostDetailFromHome: (PostId) -> Unit,
-    navigateToPostDetailFromSupported: (PostId) -> Unit,
-    navigateToCreatorPlans: (CreatorId) -> Unit,
-    navigateToCreatorPosts: (CreatorId) -> Unit,
-    navigateToSimpleAlert: (SimpleAlertContents) -> Unit,
+    navigateTo: (Destination) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryHomeViewModel = koinViewModel(),
 ) {
@@ -68,7 +64,7 @@ internal fun LibraryHomeScreen(
     val supportedPager = uiState.supportedPaging.collectAsLazyPagingItems()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(snapAnimationSpec = null, flingAnimationSpec = null)
 
-    val pagerState = rememberPagerState(initialPage = if (uiState.userData.isDefaultFollowTabInHome) 1 else 0) { 2 }
+    val pagerState = rememberPagerState(initialPage = if (uiState.setting.isDefaultFollowTabInHome) 1 else 0) { 2 }
     val scope = rememberCoroutineScope()
 
     val tabs = listOf(
@@ -76,14 +72,21 @@ internal fun LibraryHomeScreen(
         HomeTabs.Home,
     )
 
-    LaunchedEffect(true) {
+    val currentNavigateTo by rememberUpdatedState(navigateTo)
+
+    LaunchedEffect(Unit) {
         viewModel.updatePlusTrigger.collectLatest {
-            navigateToSimpleAlert.invoke(if (it) SimpleAlertContents.PurchasePlus else SimpleAlertContents.CancelPlus)
+            if (!it) {
+                val content = SimpleAlertContents.CancelPlus
+                val destination = Destination.SimpleAlertDialog(content)
+
+                currentNavigateTo(destination)
+            }
         }
     }
 
-    LaunchedEffect(uiState.userData.isDefaultFollowTabInHome) {
-        pagerState.scrollToPage(if (uiState.userData.isDefaultFollowTabInHome) 1 else 0)
+    LaunchedEffect(uiState.setting.isDefaultFollowTabInHome) {
+        pagerState.scrollToPage(if (uiState.setting.isDefaultFollowTabInHome) 1 else 0)
     }
 
     Scaffold(
@@ -111,6 +114,7 @@ internal fun LibraryHomeScreen(
                 )
             }
         },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(Modifier.padding(padding)) {
             TabRow(
@@ -130,43 +134,48 @@ internal fun LibraryHomeScreen(
                 }
             }
 
-            HorizontalPager(pagerState) {
-                when (tabs[it]) {
+            HorizontalPager(pagerState) { index ->
+                when (tabs[index]) {
                     HomeTabs.Home -> {
                         LazyPagingItemsLoadContents(
                             modifier = Modifier.fillMaxSize(),
                             lazyPagingItems = homePager,
                             emptyMessageRes = Res.string.error_no_data_following,
-                        ) {
+                        ) { _ ->
                             LibraryHomeIdleSection(
                                 modifier = Modifier.fillMaxSize(),
                                 pagingAdapter = homePager,
-                                userData = uiState.userData,
-                                bookmarkedPosts = uiState.bookmarkedPosts.toImmutableList(),
-                                onClickPost = navigateToPostDetailFromHome,
+                                setting = uiState.setting,
+                                bookmarkedPostsIds = uiState.bookmarkedPostsIds.toImmutableList(),
+                                onClickPost = {
+                                    navigateTo(Destination.PostDetail(it, Destination.PostDetail.PagingType.Home))
+                                },
                                 onClickPostLike = viewModel::postLike,
                                 onClickPostBookmark = viewModel::postBookmark,
-                                onClickCreator = navigateToCreatorPosts,
-                                onClickPlanList = navigateToCreatorPlans,
+                                onClickCreator = { navigateTo(Destination.CreatorTop(it, true)) },
+                                onClickPlanList = { navigateTo(Destination.CreatorTop(it, false)) },
                             )
                         }
                     }
+
                     HomeTabs.Supported -> {
                         LazyPagingItemsLoadContents(
                             modifier = Modifier.fillMaxSize(),
                             lazyPagingItems = supportedPager,
                             emptyMessageRes = Res.string.error_no_data_supported,
-                        ) {
+                        ) { _ ->
                             LibrarySupportedIdleSection(
                                 modifier = Modifier.fillMaxSize(),
                                 pagingAdapter = supportedPager,
-                                userData = uiState.userData,
-                                bookmarkedPosts = uiState.bookmarkedPosts.toImmutableList(),
-                                onClickPost = navigateToPostDetailFromSupported,
+                                setting = uiState.setting,
+                                bookmarkedPostsIds = uiState.bookmarkedPostsIds.toImmutableList(),
+                                onClickPost = {
+                                    navigateTo(Destination.PostDetail(it, Destination.PostDetail.PagingType.Supported))
+                                },
                                 onClickPostLike = viewModel::postLike,
                                 onClickPostBookmark = viewModel::postBookmark,
-                                onClickCreator = navigateToCreatorPosts,
-                                onClickPlanList = navigateToCreatorPlans,
+                                onClickCreator = { navigateTo(Destination.CreatorTop(it, true)) },
+                                onClickPlanList = { navigateTo(Destination.CreatorTop(it, false)) },
                             )
                         }
                     }

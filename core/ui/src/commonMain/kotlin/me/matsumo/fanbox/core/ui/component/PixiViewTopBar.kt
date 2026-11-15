@@ -1,14 +1,18 @@
 package me.matsumo.fanbox.core.ui.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -24,11 +28,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 fun PixiViewTopBar(
     modifier: Modifier = Modifier,
     title: String? = null,
-    navigationIcon: ImageVector? = Icons.Filled.ArrowBack,
+    navigationIcon: ImageVector? = Icons.AutoMirrored.Filled.ArrowBack,
     actionsIcon: ImageVector? = Icons.Default.MoreVert,
     windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    highlightColor: Color = MaterialTheme.colorScheme.surface,
     isTransparent: Boolean = false,
+    isShowTitle: Boolean = true,
     onClickNavigation: (() -> Unit)? = null,
     onClickActions: (() -> Unit)? = null,
 ) {
@@ -41,26 +47,42 @@ fun PixiViewTopBar(
         TopAppBarDefaults.topAppBarColors()
     }
 
+    val iconColors = if (isTransparent) {
+        IconButtonDefaults.iconButtonColors(highlightColor.copy(alpha = 0.4f))
+    } else {
+        IconButtonDefaults.iconButtonColors()
+    }
+
     TopAppBar(
         modifier = modifier,
         colors = colors,
         windowInsets = windowInsets,
         title = {
             if (title != null) {
-                Text(
-                    modifier = Modifier.fillMaxWidth(),
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                AnimatedVisibility(
+                    visible = isShowTitle,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
+                    Text(
+                        modifier = Modifier.fillMaxWidth(),
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         },
         navigationIcon = {
             if (onClickNavigation != null) {
-                IconButton(onClick = onClickNavigation) {
+                IconButton(
+                    colors = iconColors,
+                    onClick = onClickNavigation,
+                ) {
                     navigationIcon?.let {
                         Icon(
                             imageVector = it,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             contentDescription = null,
                         )
                     }
@@ -69,10 +91,14 @@ fun PixiViewTopBar(
         },
         actions = {
             if (onClickActions != null) {
-                IconButton(onClick = onClickActions) {
+                IconButton(
+                    colors = iconColors,
+                    onClick = onClickActions,
+                ) {
                     actionsIcon?.let {
                         Icon(
                             imageVector = it,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             contentDescription = null,
                         )
                     }
@@ -88,7 +114,7 @@ fun PixiViewTopBar(
 fun PixiViewCenterAlignedTopBar(
     modifier: Modifier = Modifier,
     title: String? = null,
-    navigationIcon: ImageVector = Icons.Filled.ArrowBack,
+    navigationIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
     actionsIcon: ImageVector = Icons.Default.MoreVert,
     windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
     scrollBehavior: TopAppBarScrollBehavior? = null,

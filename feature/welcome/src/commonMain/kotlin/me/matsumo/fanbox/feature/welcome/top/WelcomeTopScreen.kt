@@ -9,10 +9,11 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,20 +38,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.ui.Res
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.ic_app_icon
+import me.matsumo.fanbox.core.resources.welcome_agree
+import me.matsumo.fanbox.core.resources.welcome_button_next
+import me.matsumo.fanbox.core.resources.welcome_description
+import me.matsumo.fanbox.core.resources.welcome_privacy_policy
+import me.matsumo.fanbox.core.resources.welcome_team_of_service
 import me.matsumo.fanbox.core.ui.appName
 import me.matsumo.fanbox.core.ui.extensition.LocalNavigationType
 import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
 import me.matsumo.fanbox.core.ui.extensition.PixiViewNavigationType
-import me.matsumo.fanbox.core.ui.ic_app_icon
 import me.matsumo.fanbox.core.ui.theme.bold
 import me.matsumo.fanbox.core.ui.theme.center
-import me.matsumo.fanbox.core.ui.welcome_agree
-import me.matsumo.fanbox.core.ui.welcome_button_next
-import me.matsumo.fanbox.core.ui.welcome_description
-import me.matsumo.fanbox.core.ui.welcome_privacy_policy
-import me.matsumo.fanbox.core.ui.welcome_team_of_service
 import me.matsumo.fanbox.feature.welcome.WelcomeIndicatorItem
+import me.matsumo.fanbox.feature.welcome.WelcomeSettingButton
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -59,56 +61,70 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 internal fun WelcomeTopScreen(
     navigateToWelcomeLogin: () -> Unit,
+    navigateToSetting: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WelcomeTopViewModel = koinViewModel(),
     navigatorExtension: NavigatorExtension = koinInject(),
 ) {
     val navigationType = LocalNavigationType.current.type
 
-    if (navigationType != PixiViewNavigationType.PermanentNavigationDrawer) {
-        Column(
-            modifier = modifier
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(modifier = Modifier.height(24.dp))
-
-            FirstSection()
-
-            SecondSection(
-                modifier = Modifier.weight(1f),
-                navigateToWelcomeLogin = navigateToWelcomeLogin,
-                setAgreedPrivacyPolicy = viewModel::setAgreedPrivacyPolicy,
-                setAgreedTermsOfService = viewModel::setAgreedTermsOfService,
-                navigateToWebPage = { navigatorExtension.navigateToWebPage(it, WelcomeTopRoute) },
-            )
-        }
-    } else {
-        Row(
-            modifier = modifier
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FirstSection(
-                modifier = Modifier.weight(1f),
-            )
-
-            Spacer(modifier = Modifier.width(24.dp))
-
-            Column(Modifier.weight(1f)) {
-                Box(Modifier.weight(2f))
+    Box(modifier) {
+        if (navigationType != PixiViewNavigationType.PermanentNavigationDrawer) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                FirstSection(
+                    modifier = Modifier.padding(top = 24.dp),
+                )
 
                 SecondSection(
-                    modifier = Modifier.weight(3f),
+                    modifier = Modifier.weight(1f),
                     navigateToWelcomeLogin = navigateToWelcomeLogin,
                     setAgreedPrivacyPolicy = viewModel::setAgreedPrivacyPolicy,
                     setAgreedTermsOfService = viewModel::setAgreedTermsOfService,
-                    navigateToWebPage = { navigatorExtension.navigateToWebPage(it, WelcomeTopRoute) },
+                    navigateToWebPage = { navigatorExtension.navigateToWebPage(it, "") },
                 )
             }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                FirstSection(
+                    modifier = Modifier.weight(1f),
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Box(Modifier.weight(2f))
+
+                    SecondSection(
+                        modifier = Modifier.weight(3f),
+                        navigateToWelcomeLogin = navigateToWelcomeLogin,
+                        setAgreedPrivacyPolicy = viewModel::setAgreedPrivacyPolicy,
+                        setAgreedTermsOfService = viewModel::setAgreedTermsOfService,
+                        navigateToWebPage = { navigatorExtension.navigateToWebPage(it, "") },
+                    )
+                }
+            }
         }
+
+        WelcomeSettingButton(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .size(64.dp),
+            onClick = navigateToSetting,
+        )
     }
 }
 
@@ -176,7 +192,7 @@ private fun SecondSection(
                 isChecked = isAgreedTermsOfService,
                 link = stringResource(Res.string.welcome_team_of_service),
                 body = stringResource(Res.string.welcome_agree, stringResource(Res.string.welcome_team_of_service)),
-                onChecked = { isAgreedTermsOfService = it },
+                onCheck = { isAgreedTermsOfService = it },
                 onClickLink = { navigateToWebPage.invoke(teamOfServiceUri) },
             )
 
@@ -184,16 +200,14 @@ private fun SecondSection(
                 isChecked = isAgreedPrivacyPolicy,
                 link = stringResource(Res.string.welcome_privacy_policy),
                 body = stringResource(Res.string.welcome_agree, stringResource(Res.string.welcome_privacy_policy)),
-                onChecked = { isAgreedPrivacyPolicy = it },
+                onCheck = { isAgreedPrivacyPolicy = it },
                 onClickLink = { navigateToWebPage.invoke(privacyPolicyUri) },
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
         WelcomeIndicatorItem(
-            modifier = Modifier.padding(bottom = 24.dp),
-            max = 3,
+            modifier = Modifier.padding(vertical = 24.dp),
+            max = 2,
             step = 1,
         )
 
@@ -225,7 +239,7 @@ private fun CheckBoxLinkButton(
     isChecked: Boolean,
     link: String,
     body: String,
-    onChecked: (Boolean) -> Unit,
+    onCheck: (Boolean) -> Unit,
     onClickLink: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -256,7 +270,7 @@ private fun CheckBoxLinkButton(
         Checkbox(
             modifier = Modifier.size(12.dp),
             checked = isChecked,
-            onCheckedChange = onChecked,
+            onCheckedChange = onCheck,
         )
 
         ClickableText(

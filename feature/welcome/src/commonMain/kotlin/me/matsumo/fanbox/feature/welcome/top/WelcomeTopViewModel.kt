@@ -1,16 +1,14 @@
 package me.matsumo.fanbox.feature.welcome.top
 
 import androidx.lifecycle.ViewModel
-import me.matsumo.fanbox.core.repository.UserDataRepository
+import me.matsumo.fanbox.core.repository.SettingRepository
 
-class WelcomeTopViewModel(
-    private val userDataRepository: UserDataRepository
-) : ViewModel() {
+class WelcomeTopViewModel(private val settingRepository: SettingRepository) : ViewModel() {
     suspend fun setAgreedPrivacyPolicy() {
-        userDataRepository.setAgreedPrivacyPolicy(true)
+        settingRepository.setAgreedPrivacyPolicy(true)
     }
 
     suspend fun setAgreedTermsOfService() {
-        userDataRepository.setAgreedTermsOfService(true)
+        settingRepository.setAgreedTermsOfService(true)
     }
 }

@@ -2,28 +2,14 @@ package me.matsumo.fanbox.feature.about.about
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import me.matsumo.fanbox.core.ui.animation.NavigateAnimation
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import me.matsumo.fanbox.core.ui.extensition.navigateWithLog
+import androidx.navigation3.runtime.EntryProviderScope
+import me.matsumo.fanbox.core.model.Destination
 
-const val AboutRoute = "about"
-
-fun NavController.navigateToAbout() {
-    this.navigateWithLog(AboutRoute)
-}
-
-fun NavGraphBuilder.aboutScreen(
-    navigateToVersionHistory: () -> Unit,
-    navigateToDonate: () -> Unit,
-    terminate: () -> Unit,
-) {
-    composable(AboutRoute) {
+fun EntryProviderScope<Destination>.aboutEntry(navigateTo: (Destination) -> Unit, terminate: () -> Unit) {
+    entry<Destination.About> {
         AboutRoute(
             modifier = Modifier.fillMaxSize(),
-            navigateToVersionHistory = navigateToVersionHistory,
-            navigateToDonate = navigateToDonate,
+            navigateTo = navigateTo,
             terminate = terminate,
         )
     }

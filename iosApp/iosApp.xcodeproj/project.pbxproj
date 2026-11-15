@@ -19,7 +19,6 @@
 		AD6E4F682B8508E70000CD56 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD6E4F672B8508E70000CD56 /* NativeAdView.swift */; };
 		AD6E4F732B865E6F0000CD56 /* NativeAdView.xib in Resources */ = {isa = PBXBuildFile; fileRef = AD6E4F722B865E6F0000CD56 /* NativeAdView.xib */; };
 		AD6E4F772B86663F0000CD56 /* UIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD6E4F762B86663F0000CD56 /* UIProvider.swift */; };
-		AD6E4F7B2B885A1D0000CD56 /* NCMB in Frameworks */ = {isa = PBXBuildFile; productRef = AD6E4F7A2B885A1D0000CD56 /* NCMB */; };
 		AD6E4F7D2B885A5F0000CD56 /* secret.plist in Resources */ = {isa = PBXBuildFile; fileRef = AD6E4F7C2B885A5F0000CD56 /* secret.plist */; };
 		AD6E4F7F2B885B9B0000CD56 /* KeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD6E4F7E2B885B9B0000CD56 /* KeyManager.swift */; };
 		AD6E4F812B88A1060000CD56 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD6E4F802B88A1060000CD56 /* BannerAdView.swift */; };
@@ -100,7 +99,6 @@
 				AD6E4F9E2B8A47C40000CD56 /* FirebaseFirestore in Frameworks */,
 				AD6E4F652B84F33D0000CD56 /* GoogleMobileAds in Frameworks */,
 				AD6E4FA82B8A47C40000CD56 /* FirebaseInAppMessaging-Beta in Frameworks */,
-				AD6E4F7B2B885A1D0000CD56 /* NCMB in Frameworks */,
 				AD6E4F882B8A47C40000CD56 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
 				AD6E4FB62B8A47C40000CD56 /* FirebaseRemoteConfigSwift in Frameworks */,
 				AD6E4F942B8A47C40000CD56 /* FirebaseAuthCombine-Community in Frameworks */,
@@ -213,7 +211,6 @@
 				7555FF77242A565900829871 /* Sources */,
 				7555FF79242A565900829871 /* Resources */,
 				AD14F5962B55A31600B367F8 /* Frameworks */,
-				ADB92A782B43F7DB00ECEB57 /* Run Script */,
 			);
 			buildRules = (
 			);
@@ -222,7 +219,6 @@
 			name = iosApp;
 			packageProductDependencies = (
 				AD6E4F642B84F33D0000CD56 /* GoogleMobileAds */,
-				AD6E4F7A2B885A1D0000CD56 /* NCMB */,
 				AD6E4F852B8A47C40000CD56 /* FirebaseAnalytics */,
 				AD6E4F872B8A47C40000CD56 /* FirebaseAnalyticsOnDeviceConversion */,
 				AD6E4F892B8A47C40000CD56 /* FirebaseAnalyticsSwift */,
@@ -283,7 +279,6 @@
 			mainGroup = 7555FF72242A565900829871;
 			packageReferences = (
 				AD6E4F632B84F33D0000CD56 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
-				AD6E4F792B885A1D0000CD56 /* XCRemoteSwiftPackageReference "ncmb_swift" */,
 				AD6E4F842B8A47C40000CD56 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			productRefGroup = 7555FF7C242A565900829871 /* Products */;
@@ -313,24 +308,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		ADB92A782B43F7DB00ECEB57 /* Run Script */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Run Script";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/../gradlew\" -p \"$SRCROOT/../\" :core:ui:copyFrameworkResourcesToApp \\\n    -Pmoko.resources.BUILT_PRODUCTS_DIR=\"$BUILT_PRODUCTS_DIR\" \\\n    -Pmoko.resources.CONTENTS_FOLDER_PATH=\"$CONTENTS_FOLDER_PATH\" \\\n    -Pkotlin.native.cocoapods.platform=\"$PLATFORM_NAME\" \\\n    -Pkotlin.native.cocoapods.archs=\"$ARCHS\" \\\n    -Pkotlin.native.cocoapods.configuration=\"$CONFIGURATION\" \n";
-		};
 		F36B1CEB2AD83DDC00CB74D5 /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -347,7 +324,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :composeApp:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -520,26 +497,36 @@
 				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = P2KMSDQ33M;
 				ENABLE_PREVIEWS = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)\n$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
-				);
+				FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_CFBundleDisplayName = FanViewer;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "$(PRODUCT_NAME) requests permission to read bluetooth";
+				INFOPLIST_KEY_NSContactsUsageDescription = "$(PRODUCT_NAME) requests permission to read contacts";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "$(PRODUCT_NAME) requests permission to read locations";
+				INFOPLIST_KEY_NSMotionUsageDescription = "$(PRODUCT_NAME) requests permission to read motions";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.3.6;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					composeApp,
+					shared,
 					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "${BUNDLE_ID}${TEAM_ID}";
@@ -549,6 +536,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -565,32 +553,45 @@
 				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20;
+				CURRENT_PROJECT_VERSION = 76;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = P2KMSDQ33M;
 				ENABLE_PREVIEWS = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)\n$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
-				);
+				FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_CFBundleDisplayName = FanViewer;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "$(PRODUCT_NAME) requests permission to read bluetooth";
+				INFOPLIST_KEY_NSContactsUsageDescription = "$(PRODUCT_NAME) requests permission to read contacts";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "$(PRODUCT_NAME) requests permission to read locations";
+				INFOPLIST_KEY_NSMotionUsageDescription = "$(PRODUCT_NAME) requests permission to read motions";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.3.6;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					composeApp,
+					shared,
 					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "${BUNDLE_ID}${TEAM_ID}";
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = me.matsumo.fanbox;
 				PRODUCT_NAME = "${APP_NAME}";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -629,14 +630,6 @@
 				minimumVersion = 11.0.1;
 			};
 		};
-		AD6E4F792B885A1D0000CD56 /* XCRemoteSwiftPackageReference "ncmb_swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/NIFCLOUD-mbaas/ncmb_swift.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.3.0;
-			};
-		};
 		AD6E4F842B8A47C40000CD56 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -652,11 +645,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AD6E4F632B84F33D0000CD56 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
 			productName = GoogleMobileAds;
-		};
-		AD6E4F7A2B885A1D0000CD56 /* NCMB */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AD6E4F792B885A1D0000CD56 /* XCRemoteSwiftPackageReference "ncmb_swift" */;
-			productName = NCMB;
 		};
 		AD6E4F852B8A47C40000CD56 /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -5,52 +5,85 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.matsumo.fanbox.core.common.util.suspendRunCatching
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorDetail
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.model.toScreenStateError
+import me.matsumo.fanbox.core.model.updateWhenIdle
 import me.matsumo.fanbox.core.repository.FanboxRepository
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.error_no_data_discovery
+import me.matsumo.fanbox.core.repository.SettingRepository
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_no_data_discovery
 
-class LibraryDiscoveryViewModel(
-    private val fanboxRepository: FanboxRepository,
-) : ViewModel() {
+class LibraryDiscoveryViewModel(private val settingRepository: SettingRepository, private val fanboxRepository: FanboxRepository) : ViewModel() {
 
     private val _screenState = MutableStateFlow<ScreenState<LibraryDiscoveryUiState>>(ScreenState.Loading)
-
     val screenState = _screenState.asStateFlow()
+
+    /** userId ごとの最後に分かったフォロー状態。 */
+    val followStates = fanboxRepository.followStates
+
+    init {
+        viewModelScope.launch {
+            settingRepository.setting.collectLatest { userData ->
+                _screenState.updateWhenIdle {
+                    it.copy(setting = userData)
+                }
+            }
+        }
+    }
 
     fun fetch() {
         viewModelScope.launch {
             _screenState.value = ScreenState.Loading
             _screenState.value = suspendRunCatching {
+                val followingCreators = suspendRunCatching {
+                    fanboxRepository.getFollowingCreators()
+                }.getOrElse { emptyList() }
+                val recommendedCreators = suspendRunCatching {
+                    fanboxRepository.getRecommendedCreators()
+                }.getOrElse { emptyList() }
+                val followingPixivCreators = suspendRunCatching {
+                    fanboxRepository.getFollowingPixivCreators()
+                }.getOrElse { emptyList() }
+
                 LibraryDiscoveryUiState(
-                    recommendedCreators = fanboxRepository.getRecommendedCreators(),
-                    followingPixivCreators = fanboxRepository.getFollowingPixivCreators(),
+                    setting = settingRepository.setting.first(),
+                    followingCreators = followingCreators.shuffled(),
+                    recommendedCreators = recommendedCreators,
+                    followingPixivCreators = followingPixivCreators,
                 )
             }.fold(
                 onSuccess = { ScreenState.Idle(it) },
-                onFailure = { ScreenState.Error(Res.string.error_no_data_discovery) },
+                onFailure = {
+                    it.toScreenStateError(fallbackMessage = Res.string.error_no_data_discovery)
+                },
             )
         }
     }
 
-    suspend fun follow(creatorUserId: String): Result<Unit> {
-        return suspendRunCatching {
-            fanboxRepository.followCreator(creatorUserId)
+    fun follow(creatorUserId: UserId) {
+        viewModelScope.launch {
+            suspendRunCatching { fanboxRepository.followCreator(creatorUserId) }
         }
     }
 
-    suspend fun unfollow(creatorUserId: String): Result<Unit> {
-        return suspendRunCatching {
-            fanboxRepository.unfollowCreator(creatorUserId)
+    fun unfollow(creatorUserId: UserId) {
+        viewModelScope.launch {
+            suspendRunCatching { fanboxRepository.unfollowCreator(creatorUserId) }
         }
     }
 }
 
 @Stable
 data class LibraryDiscoveryUiState(
-    val recommendedCreators: List<FanboxCreatorDetail>,
-    val followingPixivCreators: List<FanboxCreatorDetail>,
+    val setting: Setting,
+    val followingCreators: List<CreatorDetail>,
+    val recommendedCreators: List<CreatorDetail>,
+    val followingPixivCreators: List<CreatorDetail>,
 )

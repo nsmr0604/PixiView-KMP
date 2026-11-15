@@ -23,17 +23,18 @@ import app.cash.paging.compose.LazyPagingItems
 import app.cash.paging.compose.collectAsLazyPagingItems
 import app.cash.paging.compose.itemContentType
 import app.cash.paging.compose.itemKey
-import me.matsumo.fanbox.core.model.fanbox.FanboxBell
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.fanbox.Bell
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_no_data_notify
+import me.matsumo.fanbox.core.resources.library_navigation_notify
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
 import me.matsumo.fanbox.core.ui.LazyPagingItemsLoadContents
-import me.matsumo.fanbox.core.ui.Res
 import me.matsumo.fanbox.core.ui.component.PixiViewTopBar
-import me.matsumo.fanbox.core.ui.error_no_data_notify
 import me.matsumo.fanbox.core.ui.extensition.LocalNavigationType
 import me.matsumo.fanbox.core.ui.extensition.PixiViewNavigationType
 import me.matsumo.fanbox.core.ui.extensition.drawVerticalScrollbar
-import me.matsumo.fanbox.core.ui.library_navigation_notify
 import me.matsumo.fanbox.core.ui.view.PagingErrorSection
 import me.matsumo.fanbox.feature.library.notify.items.LibraryNotifyBellItem
 import org.jetbrains.compose.resources.stringResource
@@ -42,7 +43,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 internal fun LibraryNotifyRoute(
     openDrawer: () -> Unit,
-    navigateToPostDetail: (PostId) -> Unit,
+    navigateTo: (Destination) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryNotifyViewModel = koinViewModel(),
 ) {
@@ -51,13 +52,13 @@ internal fun LibraryNotifyRoute(
     AsyncLoadContents(
         modifier = modifier,
         screenState = screenState,
-    ) {
-        val paging = it.paging.collectAsLazyPagingItems()
+    ) { uiState ->
+        val paging = uiState.paging.collectAsLazyPagingItems()
 
         LibraryNotifyScreen(
-            modifier = modifier,
+            modifier = Modifier.fillMaxSize(),
             openDrawer = openDrawer,
-            onClickBell = navigateToPostDetail,
+            onClickBell = { navigateTo(Destination.PostDetail(it, Destination.PostDetail.PagingType.Unknown)) },
             pagingAdapter = paging,
         )
     }
@@ -66,7 +67,7 @@ internal fun LibraryNotifyRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LibraryNotifyScreen(
-    pagingAdapter: LazyPagingItems<FanboxBell>,
+    pagingAdapter: LazyPagingItems<Bell>,
     openDrawer: () -> Unit,
     onClickBell: (PostId) -> Unit,
     modifier: Modifier = Modifier,
@@ -103,12 +104,16 @@ private fun LibraryNotifyScreen(
             ) {
                 items(
                     count = pagingAdapter.itemCount,
-                    key = pagingAdapter.itemKey {
-                        when (it) {
-                            is FanboxBell.Comment -> "comment-${it.id}"
-                            is FanboxBell.Like -> "like-${it.id}"
-                            is FanboxBell.PostPublished -> "post-${it.id}"
-                        }
+                    // fankt 0.1.0 で ID が value class になり、文字列補間が型名を含む形に変わった。
+                    // 同じ通知が二度返っても Key was already used にならないよう index も併用する。
+                    key = { index ->
+                        pagingAdapter.itemKey {
+                            when (it) {
+                                is Bell.Comment -> "comment-${it.id.value}-$index"
+                                is Bell.Like -> "like-${it.id}-$index"
+                                is Bell.PostPublished -> "post-${it.id.value}-$index"
+                            }
+                        }(index)
                     },
                     contentType = pagingAdapter.itemContentType(),
                 ) { index ->

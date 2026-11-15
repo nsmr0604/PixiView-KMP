@@ -1,6 +1,6 @@
 package me.matsumo.fanbox.core.ui.animation
 
-/**
+/*
  * Fork from https://github.com/mxalbert1996/Zoomable
  */
 
@@ -65,11 +65,13 @@ fun Zoomable(
     onLongPress: ((Offset) -> Unit)? = null,
     dismissGestureEnabled: Boolean = false,
     onDismiss: () -> Boolean = { false },
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val dismissGestureEnabledState = rememberUpdatedState(dismissGestureEnabled)
     val onDismissState = rememberUpdatedState(onDismiss)
-    val gesturesModifier = if (!enabled) Modifier else {
+    val gesturesModifier = if (!enabled) {
+        Modifier
+    } else {
         LaunchedEffect(state.isGestureInProgress, state.overZoomConfig) {
             if (!state.isGestureInProgress) {
                 val range = state.overZoomConfig?.range
@@ -85,7 +87,7 @@ fun Zoomable(
                 onTap = onTap,
                 onLongPress = onLongPress,
                 dismissGestureEnabled = dismissGestureEnabledState,
-                onDismiss = onDismissState
+                onDismiss = onDismissState,
             )
         }
     }
@@ -99,22 +101,22 @@ fun Zoomable(
                 val placeable = measurable.measure(
                     Constraints(
                         maxWidth = (width * state.scale).roundToInt(),
-                        maxHeight = (height * state.scale).roundToInt()
-                    )
+                        maxHeight = (height * state.scale).roundToInt(),
+                    ),
                 )
                 state.size = IntSize(width, height)
                 state.childSize = Size(
                     placeable.width / state.scale,
-                    placeable.height / state.scale
+                    placeable.height / state.scale,
                 )
                 layout(width, height) {
                     placeable.placeWithLayer(
                         state.translationX.roundToInt() - state.boundOffset.x,
-                        state.translationY.roundToInt() - state.boundOffset.y
-                                + state.dismissDragOffsetY.roundToInt()
+                        state.translationY.roundToInt() - state.boundOffset.y +
+                            state.dismissDragOffsetY.roundToInt(),
                     )
                 }
-            }
+            },
     ) {
         content()
     }
@@ -125,83 +127,109 @@ internal suspend fun PointerInputScope.detectZoomableGestures(
     onTap: ((Offset) -> Unit)?,
     onLongPress: ((Offset) -> Unit)? = null,
     dismissGestureEnabled: State<Boolean>,
-    onDismiss: State<() -> Boolean>
+    onDismiss: State<() -> Boolean>,
 ): Unit = coroutineScope {
-    // 'start = CoroutineStart.UNDISPATCHED' required so handler doesn't miss first event.
+    // 最初の pointer event を取りこぼさないよう、各 detector を即時起動する。
     launch(start = CoroutineStart.UNDISPATCHED) {
-        detectTapGestures(
+        detectZoomableTaps(
+            state = state,
             onTap = onTap,
-            onDoubleTap = { offset ->
-                launch {
-                    val isZooming = state.isZooming
-                    val targetScale = if (isZooming) state.minSnapScale else state.doubleTapScale
-                    state.animateScaleTo(
-                        targetScale = targetScale,
-                        targetTranslation = if (isZooming) {
-                            Offset.Zero
-                        } else {
-                            state.calculateTargetTranslation(offset) * targetScale
-                        }
-                    )
-                }
-            },
             onLongPress = onLongPress,
         )
     }
+    launch(start = CoroutineStart.UNDISPATCHED) { detectZoomableTransforms(state) }
     launch(start = CoroutineStart.UNDISPATCHED) {
-        detectTransformGestures(
-            onGestureStart = { state.onGestureStart() },
-            onGesture = { centroid, pan, zoom ->
-                if (state.dismissDragAbsoluteOffsetY == 0f) {
-                    launch {
-                        state.onTransform(centroid, pan, zoom)
-                    }
-                }
-            },
-            onGestureEnd = { state.onTransformEnd() }
-        )
-    }
-    launch(start = CoroutineStart.UNDISPATCHED) {
-        detectDragGestures(
+        detectZoomableDrags(
             state = state,
             dismissGestureEnabled = dismissGestureEnabled,
-            startDragImmediately = { state.isGestureInProgress },
-            onDragStart = {
-                state.onGestureStart()
-                state.addPosition(it.uptimeMillis, it.position)
-            },
-            onDrag = { change, dragAmount ->
-                if (state.isZooming) {
-                    launch {
-                        state.onDrag(dragAmount)
-                        state.addPosition(change.uptimeMillis, change.position)
-                    }
-                } else {
-                    state.onDismissDrag(dragAmount.y)
+            onDismiss = onDismiss,
+        )
+    }
+}
+
+private suspend fun PointerInputScope.detectZoomableTaps(
+    state: ZoomableState,
+    onTap: ((Offset) -> Unit)?,
+    onLongPress: ((Offset) -> Unit)?,
+): Unit = coroutineScope {
+    detectTapGestures(
+        onTap = onTap,
+        onDoubleTap = { offset ->
+            launch {
+                val isZooming = state.isZooming
+                val targetScale = if (isZooming) state.minSnapScale else state.doubleTapScale
+                state.animateScaleTo(
+                    targetScale = targetScale,
+                    targetTranslation = if (isZooming) {
+                        Offset.Zero
+                    } else {
+                        state.calculateTargetTranslation(offset) * targetScale
+                    },
+                )
+            }
+        },
+        onLongPress = onLongPress,
+    )
+}
+
+private suspend fun PointerInputScope.detectZoomableTransforms(state: ZoomableState): Unit = coroutineScope {
+    detectTransformGestures(
+        onGestureStart = { state.onGestureStart() },
+        onGesture = { centroid, pan, zoom ->
+            if (state.dismissDragAbsoluteOffsetY == 0f) {
+                launch {
+                    state.onTransform(centroid, pan, zoom)
                 }
-            },
-            onDragCancel = {
+            }
+        },
+        onGestureEnd = { state.onTransformEnd() },
+    )
+}
+
+private suspend fun PointerInputScope.detectZoomableDrags(
+    state: ZoomableState,
+    dismissGestureEnabled: State<Boolean>,
+    onDismiss: State<() -> Boolean>,
+): Unit = coroutineScope {
+    detectDragGestures(
+        state = state,
+        dismissGestureEnabled = dismissGestureEnabled,
+        startDragImmediately = { state.isGestureInProgress },
+        onDragStart = {
+            state.onGestureStart()
+            state.addPosition(it.uptimeMillis, it.position)
+        },
+        onDrag = { change, dragAmount ->
+            if (state.isZooming) {
+                launch {
+                    state.onDrag(dragAmount)
+                    state.addPosition(change.uptimeMillis, change.position)
+                }
+            } else {
+                state.onDismissDrag(dragAmount.y)
+            }
+        },
+        onDragCancel = {
+            if (state.isZooming) {
+                state.resetTracking()
+            } else {
+                launch {
+                    state.onDismissDragEnd()
+                }
+            }
+        },
+        onDragEnd = {
+            launch {
                 if (state.isZooming) {
-                    state.resetTracking()
+                    state.onDragEnd()
                 } else {
-                    launch {
+                    if (!(state.shouldDismiss && onDismiss.value.invoke())) {
                         state.onDismissDragEnd()
                     }
                 }
-            },
-            onDragEnd = {
-                launch {
-                    if (state.isZooming) {
-                        state.onDragEnd()
-                    } else {
-                        if (!(state.shouldDismiss && onDismiss.value.invoke())) {
-                            state.onDismissDragEnd()
-                        }
-                    }
-                }
             }
-        )
-    }
+        },
+    )
 }
 
 private suspend fun PointerInputScope.detectDragGestures(
@@ -211,7 +239,7 @@ private suspend fun PointerInputScope.detectDragGestures(
     onDragStart: (PointerInputChange) -> Unit = {},
     onDragEnd: () -> Unit = {},
     onDragCancel: () -> Unit = {},
-    onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit
+    onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit,
 ) {
     awaitEachGesture {
         // We have to always call this or we'll get a crash if we do nothing
@@ -219,7 +247,9 @@ private suspend fun PointerInputScope.detectDragGestures(
         if (state.isZooming || dismissGestureEnabled.value) {
             var overSlop = Offset.Zero
             val drag = if (state.isZooming) {
-                if (startDragImmediately()) down else {
+                if (startDragImmediately()) {
+                    down
+                } else {
                     val horizontalEdge = state.horizontalEdge
                     awaitTouchSlopOrCancellation(down.id) { change, over ->
                         if (horizontalEdge != HorizontalEdge.None) {
@@ -265,7 +295,7 @@ private suspend fun PointerInputScope.detectDragGestures(
 private suspend fun PointerInputScope.detectTransformGestures(
     onGestureStart: () -> Unit = {},
     onGestureEnd: () -> Unit = {},
-    onGesture: (centroid: Offset, pan: Offset, zoom: Float) -> Unit
+    onGesture: (centroid: Offset, pan: Offset, zoom: Float) -> Unit,
 ) {
     awaitEachGesture {
         awaitTwoDowns(requireUnconsumed = false)
@@ -291,7 +321,9 @@ private suspend fun PointerInputScope.detectTransformGestures(
     }
 }
 
-private suspend fun AwaitPointerEventScope.awaitTwoDowns(requireUnconsumed: Boolean = true) {
+private suspend fun AwaitPointerEventScope.awaitTwoDowns(
+    requireUnconsumed: Boolean = true,
+) {
     var event: PointerEvent
     var firstDown: PointerId? = null
     do {

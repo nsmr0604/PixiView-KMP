@@ -20,27 +20,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import me.matsumo.fanbox.core.common.util.format
-import me.matsumo.fanbox.core.model.fanbox.FanboxNewsLetter
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.component.AutoLinkText
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.NewsLetter
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.im_default_user
 import me.matsumo.fanbox.core.ui.extensition.asCoilImage
-import me.matsumo.fanbox.core.ui.im_default_user
 import me.matsumo.fanbox.core.ui.theme.bold
+import sh.calvin.autolinktext.rememberAutoLinkText
+import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalCoilApi::class)
+@OptIn(ExperimentalTime::class)
 @Composable
 internal fun LibraryMessageItem(
-    message: FanboxNewsLetter,
+    message: NewsLetter,
     onClickCreator: (CreatorId) -> Unit,
-    onClickLink: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isShowBigBody by rememberSaveable { mutableStateOf(false) }
@@ -71,14 +71,14 @@ internal fun LibraryMessageItem(
                         .size(36.dp),
                     model = ImageRequest.Builder(LocalPlatformContext.current)
                         .error(Res.drawable.im_default_user.asCoilImage())
-                        .data(message.creator.user.iconUrl)
+                        .data(message.creator.user?.iconUrl)
                         .build(),
                     contentDescription = null,
                 )
 
                 Text(
                     modifier = Modifier.weight(1f),
-                    text = message.creator.user.name,
+                    text = message.creator.user?.name.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium.bold(),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -93,14 +93,12 @@ internal fun LibraryMessageItem(
         }
 
         if (isShowBigBody) {
-            AutoLinkText(
+            Text(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
-                text = message.body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                onClickLink = onClickLink,
+                text = AnnotatedString.rememberAutoLinkText(message.body),
+                style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
             )
         } else {
             Text(

@@ -7,7 +7,7 @@ PixiView は PIXIV FANBOX の非公式 Android & iOS クライアントアプリ
 
 <div align="center">
   <a href="./LICENSE">
-    <img alt="LICENSE" src="https://img.shields.io/badge/license-GPL-blue.svg?maxAge=43200" />
+    <img alt="LICENSE" src="https://img.shields.io/badge/license-CC--BY--NC%204.0-lightgrey" />
   </a>
   <a href="">
     <img src="https://img.shields.io/badge/supports-Android%208+-AD2A5A">
@@ -88,12 +88,14 @@ init: {
 }%%
 
 graph LR
-  subgraph gradle 
-    build-logic  
-  end  
+  subgraph gradle
+    build-logic
+  end
   subgraph application
-    app  
-  end  
+    androidApp
+    iosApp
+    shared
+  end
   subgraph core
     common
     datastore
@@ -106,9 +108,11 @@ graph LR
     creator
     post
   end
-  app --> library
-  app --> creator
-  app --> post
+  androidApp --> shared
+  iosApp --> shared
+  shared --> library
+  shared --> creator
+  shared --> post
   library --> ui
   library --> repository
   post --> ui
@@ -121,56 +125,83 @@ graph LR
   model --> common
 ```
 
+## 静的解析
+
+静的解析は detekt 2.0.0-alpha.6、ktlint wrapper、Compose rules 0.6.8 を使う。
+root と `build-logic` の Kotlin ファイルおよび各モジュールの Kotlin ファイルを、次のコマンドで確認する。
+
+```bash
+./gradlew detekt reportMerge --continue
+./gradlew :androidApp:lintDebug
+```
+
+自動整形には `./gradlew detekt --auto-correct --continue` を使い、続けて自動修正を付けないコマンドを実行する。
+統合した Checkstyle レポートは `build/reports/detekt/merge.xml`、モジュールごとの HTML レポートは各モジュールの `build/reports/detekt/detekt.html` に出力する。
+統合対象は通常の `detekt` の結果で、型解決タスクの結果は混ぜない。
+
+関数定義とコンストラクタは、引数が3つ以上、またはデフォルト引数を持つ場合に引数ごとに改行する。
+`FunctionSignature` / `ClassSignature` は引数3つ以上の定義を検査する。
+デフォルト引数による改行、呼び出し側の名前付き引数と改行、Modifier の先頭配置、Composable の PascalCase と画面名の prefix は手動レビューの対象となる。
+メソッドチェーンはプロパティ参照を数えず、1行2呼び出しまでとする。
+`MaxChainedCallsOnSameLine` はプロパティ参照も数えるため無効化し、チェーンと Modifier のリンクごとの改行は手動で確認する。
+行長は折り返しの基準にしない。
+
+`config/detekt/detekt.yml` は Agents の共通テンプレートと同じ設定を使う。
+複雑度や関数数の閾値は detekt の既定値を使い、関数数の上限は11となる。
+責務を一緒に扱う理由がある宣言にだけ、直前の理由コメント付きで `@Suppress` を付ける。
+初期カーソルの取得が必要な Flow factory、画面ごとのイベント窓口、宣言用 UI DSL、遷移・フォーカスなどの effect の実行タイミングも、この方法で例外を明示する。
+未使用の fork の整理は [Pager/Snapper の移行](https://github.com/matsumo0922/PixiView-KMP/issues/163) で追跡する。
+Swift 側の変更を伴う [iOS entry point の整理](https://github.com/matsumo0922/PixiView-KMP/issues/164) と、既存レイアウトを維持する [Modifier の二重適用の解消](https://github.com/matsumo0922/PixiView-KMP/issues/165) も個別に追跡する。
+Composable も `CyclomaticComplexMethod` の対象とする。
+`ModifierMissing` は全可視性を対象とし、Preview と自身のレイアウトを持たないラッパーを除外する。
+
+full モードは Android の main / host test / app debug を対象とし、iosMain の型情報が必要なルールは対象に含めない。
+iOS は light と実際のコンパイルで確認する。
+型情報が必要なルールは、通常の `detekt` の統合レポートには含めず、次の full モードのタスクで検査する。
+
+```bash
+./gradlew detektMainAndroid detektHostTestAndroid :androidApp:detektDebug :androidApp:detektDebugUnitTest :androidApp:detektDebugAndroidTest --continue
+```
+
+各モジュールの `check` と CI からも対応する full モードのタスクを実行する。
+これらのタスクは detekt が生成した source set の範囲を維持し、build ディレクトリ配下の生成物を除外する。
+KMP の `expect` / `actual` に関するコンパイラ解析診断が出る場合は、ルールの指摘件数、解析診断、実際の Android/iOS のコンパイル結果を分けて確認する。
+ログイベントを生成するテンプレートは `scripts/daifuku/templates/LogCategory.kt.erb` に置き、生成された宣言と合わせて更新する。
+生成後は `./gradlew :core:logs:detekt --auto-correct` で整形を確認する。
+ログイベントとパラメータの一覧は、カテゴリごとに `scripts/daifuku/log_definitions/` の Markdown に書く。送らなくなった定義は、生成の対象外の `scripts/daifuku/log_definitions/obsoleted/` に移す。
+各イベントは `<カテゴリ>_<イベント>` の名前で Firebase Analytics に送る（例: `billing_paywall_shown`）。
+
 ## Contribute
 
 このアプリは Gradle の Convention Plugins を用いてビルドのロジックを共通化しており、`build-logic` というモジュールに全てのロジックが記述されています。このアプローチに関しては、[nowinandroid](https://github.com/matsumo0922/nowinandroid/tree/main/build-logic) をご覧ください。
 
 何か不具合を発見したり機能を改善したい場合、機能を新たに開発したい場合は、まず issue を書いてください。その上であなた自身を assign し、開発に取り組んでください。pull request はいつでも歓迎です :smile:
 
-このアプリは AdMob を用いて収益化しています。GitHub から手動でビルドする際は AdMob App ID を `local.properties` に記述する必要があります。デフォルトではダミーの ID が入っているため、起動時にクラッシュします。もしくは AdMob の当該コードを削除してからアプリをビルドしてください。その他、 `local.properties` には様々な ID が記述されています。詳細は `app/build.gradle.kts` または `PixiViewConfig` をご覧ください。
+このアプリは AdMob を用いて収益化しています。GitHub から手動でビルドする際は AdMob App ID を `local.properties` に記述する必要があります。デフォルトではダミーの ID が入っているため、起動時にクラッシュします。もしくは AdMob の当該コードを削除してからアプリをビルドしてください。その他、 `local.properties` には様々な ID が記述されています。詳細は `androidApp/build.gradle.kts`、`shared/build.gradle.kts`、`core/common/src/commonMain/kotlin/me/matsumo/fanbox/core/common/PixiViewConfig.kt` をご覧ください。
+
+リリースビルド（`bundleRelease` / `assembleRelease`）は、次の Android 用の AdMob ID のいずれかが未設定またはテスト用 ID のままだと失敗します。`local.properties` に設定すべきキーはエラーメッセージに表示されます。debug ビルドでは、未設定のキーにテスト用 ID が使われます。
+
+- `ADMOB_ANDROID_APP_ID`
+- `ADMOB_ANDROID_BANNER_AD_UNIT_ID`
+- `ADMOB_ANDROID_NATIVE_AD_UNIT_ID`
+- `ADMOB_ANDROID_REWARD_AD_UNIT_ID`
+- `ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID`
 
 ## License
 
 ```text
 PixiView
-Copyright (C) 2023 daichi-matsumoto
+Copyright 2025 daichi-matsumoto
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+Licensed under the Creative Commons NonCommercial License (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+https://creativecommons.org/licenses/by-nc/4.0/
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-Also you can contact me by electronic mail at caios.system@gmail.com.
-
-If the program does terminal interaction, make it output a short
-notice like this when it starts in an interactive mode:
-
-    PixiView  Copyright (C) 2023 daichi-matsumoto
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
-    This is free software, and you are welcome to redistribute it
-    under certain conditions; type `show c' for details.
-
-The hypothetical commands `show w' and `show c' should show the appropriate
-parts of the General Public License.  Of course, your program's commands
-might be different; for a GUI interface, you would use an "about box".
-
-You should also get your employer (if you work as a programmer) or school,
-if any, to sign a "copyright disclaimer" for the program, if necessary.
-For more information on this, and how to apply and follow the GNU GPL, see
-<https://www.gnu.org/licenses/>.
-
-The GNU General Public License does not permit incorporating your program
-into proprietary programs.  If your program is a subroutine library, you
-may consider it more useful to permit linking proprietary applications with
-the library.  If this is what you want to do, use the GNU Lesser General
-Public License instead of this License.  But first, please read
-<https://www.gnu.org/licenses/why-not-lgpl.html>.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 ```

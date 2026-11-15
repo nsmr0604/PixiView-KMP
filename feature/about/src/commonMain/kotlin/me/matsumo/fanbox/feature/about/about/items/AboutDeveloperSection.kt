@@ -26,17 +26,17 @@ import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.about_contribute
-import me.matsumo.fanbox.core.ui.about_contribute_description
-import me.matsumo.fanbox.core.ui.about_developer_name
-import me.matsumo.fanbox.core.ui.about_developer_prefix
-import me.matsumo.fanbox.core.ui.about_special_thanks
-import me.matsumo.fanbox.core.ui.about_special_thanks_contributor
-import me.matsumo.fanbox.core.ui.about_special_thanks_contributor_description
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.about_contribute
+import me.matsumo.fanbox.core.resources.about_contribute_description
+import me.matsumo.fanbox.core.resources.about_developer_name
+import me.matsumo.fanbox.core.resources.about_developer_prefix
+import me.matsumo.fanbox.core.resources.about_special_thanks
+import me.matsumo.fanbox.core.resources.about_special_thanks_contributor
+import me.matsumo.fanbox.core.resources.about_special_thanks_contributor_description
+import me.matsumo.fanbox.core.resources.ic_developer_profile
 import me.matsumo.fanbox.core.ui.extensition.Platform
 import me.matsumo.fanbox.core.ui.extensition.currentPlatform
-import me.matsumo.fanbox.core.ui.ic_developer_profile
 import me.matsumo.fanbox.core.ui.icon.Apple
 import me.matsumo.fanbox.core.ui.icon.GitHub
 import me.matsumo.fanbox.core.ui.icon.GooglePlay
@@ -59,7 +59,7 @@ internal fun AboutDeveloperSection(
         modifier = modifier,
         content = {
             ProfileIconItem(
-                modifier = Modifier.layoutId("icon")
+                modifier = Modifier.layoutId("icon"),
             )
 
             AboutDeveloperCard(
@@ -194,7 +194,7 @@ private fun AboutDeveloperCard(
             HorizontalDivider(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp)
+                    .padding(24.dp),
             )
 
             Text(
@@ -222,7 +222,7 @@ private fun AboutDeveloperCard(
             HorizontalDivider(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
             )
 
             Text(

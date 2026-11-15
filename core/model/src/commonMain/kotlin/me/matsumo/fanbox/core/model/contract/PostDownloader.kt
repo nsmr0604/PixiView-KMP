@@ -1,10 +1,14 @@
 package me.matsumo.fanbox.core.model.contract
 
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
 
 interface PostDownloader {
-    fun onDownloadImages(imageItems: List<FanboxPostDetail.ImageItem>)
-    fun onDownloadFile(fileItem: FanboxPostDetail.FileItem)
-    fun onDownloadPosts(posts: List<FanboxPost>, isIgnoreFree: Boolean, isIgnoreFile: Boolean)
+    fun onDownloadImages(imageItems: List<PostDetail.ImageItem>)
+    fun onDownloadFile(fileItem: PostDetail.FileItem)
+    fun onDownloadPosts(
+        posts: List<Post>,
+        isIgnoreFree: Boolean,
+        isIgnoreFile: Boolean,
+    )
 }

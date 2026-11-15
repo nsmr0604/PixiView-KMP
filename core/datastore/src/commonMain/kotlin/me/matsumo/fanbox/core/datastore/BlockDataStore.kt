@@ -8,16 +8,13 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
+import me.matsumo.fankt.fanbox.domain.model.id.FanboxCreatorId
 
-class BlockDataStore(
-    preferenceHelper: PreferenceHelper,
-    ioDispatcher: CoroutineDispatcher,
-) {
+class BlockDataStore(preferenceHelper: PreferenceHelper, ioDispatcher: CoroutineDispatcher) {
     private val cookiePreference = preferenceHelper.create(PreferencesName.FANBOX_BLOCK)
     private val scope = CoroutineScope(ioDispatcher)
 
-    private val _data = MutableSharedFlow<Set<CreatorId>>(replay = 1)
+    private val _data = MutableSharedFlow<Set<FanboxCreatorId>>(replay = 1)
 
     val data = _data.asSharedFlow()
 
@@ -27,7 +24,7 @@ class BlockDataStore(
         }
     }
 
-    suspend fun blockCreator(creatorId: CreatorId) {
+    suspend fun blockCreator(creatorId: FanboxCreatorId) {
         cookiePreference.edit {
             it[stringSetPreferencesKey(BLOCKED_CREATOR)] = fetchBlockedCreators().plus(creatorId.value)
         }
@@ -35,7 +32,7 @@ class BlockDataStore(
         notify()
     }
 
-    suspend fun unblockCreator(creatorId: CreatorId) {
+    suspend fun unblockCreator(creatorId: FanboxCreatorId) {
         cookiePreference.edit {
             it[stringSetPreferencesKey(BLOCKED_CREATOR)] = fetchBlockedCreators().minus(creatorId.value)
         }
@@ -51,12 +48,12 @@ class BlockDataStore(
         notify()
     }
 
-    private suspend fun fetchBlockedCreators(): Set<String> {
-        return cookiePreference.data.firstOrNull()?.let { it[stringSetPreferencesKey(BLOCKED_CREATOR)] } ?: setOf()
-    }
+    private suspend fun fetchBlockedCreators(): Set<String> = cookiePreference.data.firstOrNull()?.let {
+        it[stringSetPreferencesKey(BLOCKED_CREATOR)]
+    }.orEmpty()
 
     private suspend fun notify() {
-        _data.emit(fetchBlockedCreators().map { CreatorId(it) }.toSet())
+        _data.emit(fetchBlockedCreators().map { FanboxCreatorId(it) }.toSet())
     }
 
     companion object {

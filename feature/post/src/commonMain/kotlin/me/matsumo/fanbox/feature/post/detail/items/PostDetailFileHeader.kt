@@ -7,15 +7,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import sh.calvin.autolinktext.rememberAutoLinkText
 
 internal fun LazyListScope.postDetailFileHeader(
     isAutoImagePreview: Boolean,
-    content: FanboxPostDetail.Body.File,
-    onClickImage: (FanboxPostDetail.ImageItem) -> Unit,
-    onClickFile: (FanboxPostDetail.FileItem) -> Unit,
-    onClickDownload: (List<FanboxPostDetail.ImageItem>) -> Unit,
+    content: PostDetail.Body.File,
+    onClickImage: (PostDetail.ImageItem) -> Unit,
+    onClickFile: (PostDetail.FileItem) -> Unit,
+    onClickDownload: (List<PostDetail.ImageItem>) -> Unit,
 ) {
     items(content.files) {
         val imageItem = it.asImageItem()
@@ -26,7 +28,7 @@ internal fun LazyListScope.postDetailFileHeader(
                 item = imageItem,
                 onClickImage = onClickImage,
                 onClickDownload = { onClickDownload.invoke(listOf(imageItem)) },
-                onClickAllDownload = { onClickDownload.invoke(content.imageItems) }
+                onClickAllDownload = { onClickDownload.invoke(content.imageItems) },
             )
         } else {
             PostDetailFileItem(
@@ -41,9 +43,8 @@ internal fun LazyListScope.postDetailFileHeader(
         item {
             Text(
                 modifier = Modifier.padding(16.dp),
-                text = content.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                text = AnnotatedString.rememberAutoLinkText(content.text),
+                style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
             )
         }
     }

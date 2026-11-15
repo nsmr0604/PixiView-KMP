@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -21,27 +20,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import kotlinx.datetime.Instant
 import me.matsumo.fanbox.core.common.util.format
-import me.matsumo.fanbox.core.model.fanbox.FanboxPaidRecord
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.PaidRecord
 import me.matsumo.fanbox.core.model.fanbox.PaymentMethod
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.creator_supporting_payment_method_card
-import me.matsumo.fanbox.core.ui.creator_supporting_payment_method_cvs
-import me.matsumo.fanbox.core.ui.creator_supporting_payment_method_paypal
-import me.matsumo.fanbox.core.ui.creator_supporting_payment_method_unknown
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.creator_supporting_payment_method_card
+import me.matsumo.fanbox.core.resources.creator_supporting_payment_method_cvs
+import me.matsumo.fanbox.core.resources.creator_supporting_payment_method_paypal
+import me.matsumo.fanbox.core.resources.creator_supporting_payment_method_unknown
+import me.matsumo.fanbox.core.resources.im_default_user
+import me.matsumo.fanbox.core.resources.unit_jpy
 import me.matsumo.fanbox.core.ui.extensition.asCoilImage
-import me.matsumo.fanbox.core.ui.im_default_user
 import me.matsumo.fanbox.core.ui.theme.bold
-import me.matsumo.fanbox.core.ui.unit_jpy
 import me.matsumo.fanbox.feature.creator.payment.Payment
 import org.jetbrains.compose.resources.stringResource
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
+@OptIn(ExperimentalTime::class)
 @Composable
 internal fun PaymentItem(
     payment: Payment,
@@ -63,16 +63,14 @@ internal fun PaymentItem(
                     .padding(horizontal = 16.dp)
                     .fillMaxWidth(),
                 dateTime = payment.paymentDateTime,
-                totalPaidAmount = payment.paidRecords.sumOf { it.paidAmount }
+                totalPaidAmount = payment.paidRecords.sumOf { it.paidAmount },
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            for (item in payment.paidRecords) {
+            for ((index, item) in payment.paidRecords.withIndex()) {
                 PaidItem(
                     modifier = Modifier
                         .padding(
-                            top = 4.dp,
+                            top = if (index == 0) 12.dp else 4.dp,
                             start = 8.dp,
                             end = 16.dp,
                         )
@@ -85,6 +83,7 @@ internal fun PaymentItem(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun TitleItem(
     dateTime: Instant,
@@ -96,24 +95,15 @@ private fun TitleItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                modifier = Modifier.fillMaxWidth(),
-                text = dateTime.format("yyyy"),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Text(
+            text = dateTime.format("MM/dd"),
+            style = MaterialTheme.typography.titleMedium.bold(),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
 
-            Text(
-                modifier = Modifier.fillMaxWidth(),
-                text = dateTime.format("MMMdd"),
-                style = MaterialTheme.typography.titleMedium.bold(),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+        Spacer(
+            modifier = Modifier.weight(1f),
+        )
 
         Text(
             text = stringResource(Res.string.unit_jpy, totalPaidAmount),
@@ -123,10 +113,9 @@ private fun TitleItem(
     }
 }
 
-@OptIn(ExperimentalCoilApi::class)
 @Composable
 private fun PaidItem(
-    paidRecord: FanboxPaidRecord,
+    paidRecord: PaidRecord,
     onClickCreator: (CreatorId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -139,7 +128,11 @@ private fun PaidItem(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(4.dp))
-                .clickable { onClickCreator.invoke(paidRecord.creator.user.creatorId) }
+                .clickable {
+                    if (!paidRecord.creator.user?.creatorId?.value.isNullOrBlank()) {
+                        onClickCreator.invoke(paidRecord.creator.user!!.creatorId!!)
+                    }
+                }
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -150,7 +143,7 @@ private fun PaidItem(
                     .clip(CircleShape),
                 model = ImageRequest.Builder(LocalPlatformContext.current)
                     .error(Res.drawable.im_default_user.asCoilImage())
-                    .data(paidRecord.creator.user.iconUrl)
+                    .data(paidRecord.creator.user?.iconUrl)
                     .build(),
                 contentDescription = null,
             )
@@ -161,7 +154,7 @@ private fun PaidItem(
             ) {
                 Text(
                     modifier = Modifier.fillMaxWidth(),
-                    text = paidRecord.creator.user.name,
+                    text = paidRecord.creator.user?.name.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium.bold(),
                     color = MaterialTheme.colorScheme.onSurface,
                 )

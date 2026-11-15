@@ -2,10 +2,11 @@ package me.matsumo.fanbox.core.datastore.di
 
 import me.matsumo.fanbox.core.datastore.BlockDataStore
 import me.matsumo.fanbox.core.datastore.BookmarkDataStore
-import me.matsumo.fanbox.core.datastore.FanboxCookieDataStore
+import me.matsumo.fanbox.core.datastore.FlagDataStore
 import me.matsumo.fanbox.core.datastore.LaunchLogDataStore
-import me.matsumo.fanbox.core.datastore.PixiViewDataStore
+import me.matsumo.fanbox.core.datastore.OldCookieDataStore
 import me.matsumo.fanbox.core.datastore.RewardLogDataStore
+import me.matsumo.fanbox.core.datastore.SettingDataStore
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -14,7 +15,7 @@ expect val dataStoreHelperModule: Module
 val dataStoreModule = module {
 
     single {
-        PixiViewDataStore(
+        SettingDataStore(
             preferenceHelper = get(),
             formatter = get(),
             ioDispatcher = get(),
@@ -36,12 +37,6 @@ val dataStoreModule = module {
     }
 
     single {
-        FanboxCookieDataStore(
-            preferenceHelper = get(),
-        )
-    }
-
-    single {
         LaunchLogDataStore(
             preferenceHelper = get(),
             ioDispatcher = get(),
@@ -51,7 +46,18 @@ val dataStoreModule = module {
     single {
         RewardLogDataStore(
             preferenceHelper = get(),
-            ioDispatcher = get(),
+        )
+    }
+
+    single {
+        OldCookieDataStore(
+            preferenceHelper = get(),
+        )
+    }
+
+    single {
+        FlagDataStore(
+            preferenceHelper = get(),
         )
     }
 }

@@ -25,12 +25,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.common_cancel
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.common_cancel
+import me.matsumo.fanbox.core.resources.welcome_login_other_message
+import me.matsumo.fanbox.core.resources.welcome_login_other_title
+import me.matsumo.fanbox.core.resources.welcome_login_title
 import me.matsumo.fanbox.core.ui.theme.bold
-import me.matsumo.fanbox.core.ui.welcome_login_other_message
-import me.matsumo.fanbox.core.ui.welcome_login_other_title
-import me.matsumo.fanbox.core.ui.welcome_login_title
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -70,7 +70,9 @@ internal fun WelcomeLoginDialog(
             Text(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onClickHelp.invoke("https://github.com/matsumo0922/PixiView-KMP/blob/master/FANBOXSESSID.md") }
+                    .clickable {
+                        onClickHelp.invoke("https://github.com/matsumo0922/PixiView-KMP/blob/master/FANBOXSESSID.md")
+                    }
                     .fillMaxWidth()
                     .padding(8.dp),
                 text = "https://github.com/matsumo0922/PixiView-KMP/blob/master/FANBOXSESSID.md",

@@ -1,26 +1,25 @@
 package me.matsumo.fanbox.core.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import io.github.alexzhirkevich.cupertino.adaptive.AdaptiveTheme
-import io.github.alexzhirkevich.cupertino.adaptive.ExperimentalAdaptiveApi
-import io.github.alexzhirkevich.cupertino.adaptive.Theme
-import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
+import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.persistentMapOf
 import me.matsumo.fanbox.core.common.PixiViewConfig
 import me.matsumo.fanbox.core.model.ThemeColorConfig
 import me.matsumo.fanbox.core.model.ThemeConfig
-import me.matsumo.fanbox.core.model.fanbox.FanboxMetaData
-import me.matsumo.fanbox.core.ui.extensition.FanboxCookie
-import me.matsumo.fanbox.core.ui.extensition.LocalFanboxCookie
+import me.matsumo.fanbox.core.model.fanbox.MetaData
+import me.matsumo.fanbox.core.ui.extensition.FanboxSessionId
 import me.matsumo.fanbox.core.ui.extensition.LocalFanboxMetadata
+import me.matsumo.fanbox.core.ui.extensition.LocalFanboxSessionId
+import me.matsumo.fanbox.core.ui.extensition.getFanboxMetadataDummy
 import me.matsumo.fanbox.core.ui.theme.color.DarkBlueColorScheme
 import me.matsumo.fanbox.core.ui.theme.color.DarkBrownColorScheme
 import me.matsumo.fanbox.core.ui.theme.color.DarkGreenColorScheme
@@ -34,10 +33,6 @@ import me.matsumo.fanbox.core.ui.theme.color.LightPurpleColorScheme
 import me.matsumo.fanbox.core.ui.view.LocalNativeViewsProvider
 import me.matsumo.fanbox.core.ui.view.NativeView
 import me.matsumo.fanbox.core.ui.view.NativeViews
-
-typealias ColorSchemeIOS = io.github.alexzhirkevich.cupertino.theme.ColorScheme
-
-expect fun determineTheme(): Theme
 
 val LightDefaultColorScheme = lightColorScheme(
     primary = Purple40,
@@ -97,27 +92,19 @@ val DarkDefaultColorScheme = darkColorScheme(
 
 val LocalColorScheme = staticCompositionLocalOf { LightDefaultColorScheme }
 
-@OptIn(ExperimentalAdaptiveApi::class)
 @Composable
 fun PixiViewTheme(
-    fanboxCookie: String = "",
-    fanboxMetadata: FanboxMetaData = FanboxMetaData.dummy(),
+    sessionId: String = "",
+    fanboxMetadata: MetaData = getFanboxMetadataDummy(),
     pixiViewConfig: PixiViewConfig = PixiViewConfig.dummy(),
+    isAdsSdkInitialized: Boolean = true,
     themeConfig: ThemeConfig = ThemeConfig.System,
-    themeColorConfig: ThemeColorConfig = ThemeColorConfig.Red,
-    nativeViews: Map<String, () -> NativeView?> = emptyMap(),
+    themeColorConfig: ThemeColorConfig = ThemeColorConfig.Blue,
+    nativeViews: ImmutableMap<String, () -> NativeView?> = persistentMapOf(),
     content: @Composable () -> Unit,
 ) {
     val shouldUseDarkTheme = shouldUseDarkTheme(themeConfig)
-
-    val colorScheme = when (themeColorConfig) {
-        ThemeColorConfig.Blue -> if (shouldUseDarkTheme) DarkBlueColorScheme else LightBlueColorScheme
-        ThemeColorConfig.Brown -> if (shouldUseDarkTheme) DarkBrownColorScheme else LightBrownColorScheme
-        ThemeColorConfig.Green -> if (shouldUseDarkTheme) DarkGreenColorScheme else LightGreenColorScheme
-        ThemeColorConfig.Purple -> if (shouldUseDarkTheme) DarkPurpleColorScheme else LightPurpleColorScheme
-        ThemeColorConfig.Pink -> if (shouldUseDarkTheme) DarkPinkColorScheme else LightPinckColorScheme
-        else -> if (shouldUseDarkTheme) DarkDefaultColorScheme else LightDefaultColorScheme
-    }
+    val colorScheme = getColorTheme(themeColorConfig, shouldUseDarkTheme)
 
     val backgroundTheme = BackgroundTheme(
         color = colorScheme.surface,
@@ -128,87 +115,35 @@ fun PixiViewTheme(
 
     CompositionLocalProvider(
         LocalPixiViewConfig provides pixiViewConfig,
+        LocalAdsSdkInitialized provides isAdsSdkInitialized,
         LocalColorScheme provides colorScheme,
-        LocalFanboxCookie provides FanboxCookie(fanboxCookie),
+        LocalFanboxSessionId provides FanboxSessionId(sessionId),
         LocalFanboxMetadata provides fanboxMetadata,
         LocalBackgroundTheme provides backgroundTheme,
         LocalTintTheme provides tintTheme,
         LocalNativeViewsProvider provides NativeViews(nativeViews),
     ) {
-        AdaptiveTheme(
-            material = {
-                MaterialTheme(
-                    colorScheme = colorScheme,
-                    typography = PixiViewTypography,
-                    content = it,
-                )
-            },
-            cupertino = {
-                CupertinoTheme(
-                    colorScheme = convertMaterialToIOSColorScheme(colorScheme, shouldUseDarkTheme),
-                    content = it
-                )
-            },
-            target = determineTheme()
-        ) {
-            content.invoke()
-        }
-    }
-}
-
-fun convertMaterialToIOSColorScheme(materialScheme: ColorScheme, isDark: Boolean): ColorSchemeIOS {
-    return if (isDark) {
-        io.github.alexzhirkevich.cupertino.theme.darkColorScheme(
-            accent = materialScheme.secondary,
-            label = materialScheme.onSurface,
-            secondaryLabel = materialScheme.onSurfaceVariant,
-            tertiaryLabel = materialScheme.onBackground,
-            quaternaryLabel = materialScheme.onPrimaryContainer,
-            systemFill = materialScheme.primary,
-            secondarySystemFill = materialScheme.primaryContainer,
-            tertiarySystemFill = materialScheme.tertiary,
-            quaternarySystemFill = materialScheme.tertiaryContainer,
-            placeholderText = materialScheme.onBackground,
-            separator = materialScheme.outline,
-            opaqueSeparator = materialScheme.outlineVariant,
-            link = materialScheme.secondary,
-            systemGroupedBackground = materialScheme.surface,
-            secondarySystemGroupedBackground = materialScheme.surfaceVariant,
-            tertiarySystemGroupedBackground = materialScheme.background,
-            systemBackground = materialScheme.surface,
-            secondarySystemBackground = materialScheme.surfaceVariant,
-            tertiarySystemBackground = materialScheme.background,
-        )
-    } else {
-        io.github.alexzhirkevich.cupertino.theme.lightColorScheme(
-            accent = materialScheme.secondary,
-            label = materialScheme.onSurface,
-            secondaryLabel = materialScheme.onSurfaceVariant,
-            tertiaryLabel = materialScheme.onBackground,
-            quaternaryLabel = materialScheme.onPrimaryContainer,
-            systemFill = materialScheme.primary,
-            secondarySystemFill = materialScheme.primaryContainer,
-            tertiarySystemFill = materialScheme.tertiary,
-            quaternarySystemFill = materialScheme.tertiaryContainer,
-            placeholderText = materialScheme.onBackground,
-            separator = materialScheme.outline,
-            opaqueSeparator = materialScheme.outlineVariant,
-            link = materialScheme.secondary,
-            systemGroupedBackground = materialScheme.surface,
-            secondarySystemGroupedBackground = materialScheme.surfaceVariant,
-            tertiarySystemGroupedBackground = materialScheme.background,
-            systemBackground = materialScheme.surface,
-            secondarySystemBackground = materialScheme.surfaceVariant,
-            tertiarySystemBackground = materialScheme.background,
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = PixiViewTypography,
+            content = content,
         )
     }
 }
 
+@ReadOnlyComposable
 @Composable
-fun shouldUseDarkTheme(themeConfig: ThemeConfig): Boolean {
-    return when (themeConfig) {
-        ThemeConfig.System -> isSystemInDarkTheme()
-        ThemeConfig.Light -> false
-        ThemeConfig.Dark -> true
-    }
+fun shouldUseDarkTheme(themeConfig: ThemeConfig): Boolean = when (themeConfig) {
+    ThemeConfig.System -> isSystemInDarkTheme()
+    ThemeConfig.Light -> false
+    ThemeConfig.Dark -> true
+}
+
+fun getColorTheme(themeColorConfig: ThemeColorConfig, shouldUseDarkTheme: Boolean) = when (themeColorConfig) {
+    ThemeColorConfig.Blue -> if (shouldUseDarkTheme) DarkBlueColorScheme else LightBlueColorScheme
+    ThemeColorConfig.Brown -> if (shouldUseDarkTheme) DarkBrownColorScheme else LightBrownColorScheme
+    ThemeColorConfig.Green -> if (shouldUseDarkTheme) DarkGreenColorScheme else LightGreenColorScheme
+    ThemeColorConfig.Purple -> if (shouldUseDarkTheme) DarkPurpleColorScheme else LightPurpleColorScheme
+    ThemeColorConfig.Pink -> if (shouldUseDarkTheme) DarkPinkColorScheme else LightPinckColorScheme
+    else -> if (shouldUseDarkTheme) DarkDefaultColorScheme else LightDefaultColorScheme
 }

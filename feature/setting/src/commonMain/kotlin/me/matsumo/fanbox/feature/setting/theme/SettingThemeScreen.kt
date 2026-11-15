@@ -9,11 +9,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
@@ -25,23 +26,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.alexzhirkevich.cupertino.adaptive.AdaptiveScaffold
-import io.github.alexzhirkevich.cupertino.adaptive.ExperimentalAdaptiveApi
 import kotlinx.coroutines.launch
+import me.matsumo.fanbox.core.model.BillingReferrer
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.Setting
 import me.matsumo.fanbox.core.model.ThemeColorConfig
 import me.matsumo.fanbox.core.model.ThemeConfig
-import me.matsumo.fanbox.core.model.UserData
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.billing_plus_toast_require_plus
+import me.matsumo.fanbox.core.resources.setting_theme_theme_dynamic_color
+import me.matsumo.fanbox.core.resources.setting_theme_theme_dynamic_color_description
+import me.matsumo.fanbox.core.resources.setting_theme_title
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.billing_plus_toast_require_plus
 import me.matsumo.fanbox.core.ui.component.SettingSwitchItem
 import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
 import me.matsumo.fanbox.core.ui.extensition.Platform
 import me.matsumo.fanbox.core.ui.extensition.ToastExtension
 import me.matsumo.fanbox.core.ui.extensition.currentPlatform
-import me.matsumo.fanbox.core.ui.setting_theme_theme_dynamic_color
-import me.matsumo.fanbox.core.ui.setting_theme_theme_dynamic_color_description
-import me.matsumo.fanbox.core.ui.setting_theme_title
 import me.matsumo.fanbox.feature.setting.SettingTheme
 import me.matsumo.fanbox.feature.setting.theme.items.SettingThemeColorSection
 import me.matsumo.fanbox.feature.setting.theme.items.SettingThemeTabsSection
@@ -52,7 +53,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun SettingThemeRoute(
-    navigateToBillingPlus: (String?) -> Unit,
+    navigateTo: (Destination) -> Unit,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingThemeViewModel = koinViewModel(),
@@ -65,24 +66,25 @@ internal fun SettingThemeRoute(
     AsyncLoadContents(
         modifier = modifier,
         screenState = screenState,
+        terminate = { terminate.invoke() },
     ) {
         SettingThemeDialog(
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-            userData = it.userData,
-            onClickBillingPlus = { navigateToBillingPlus.invoke("isUseDynamicColor") },
+            setting = it.setting,
+            onClickBillingPlus = { navigateTo(Destination.BillingPlusBottomSheet(BillingReferrer.DYNAMIC_COLOR)) },
             onSelectTheme = viewModel::setThemeConfig,
             onSelectThemeColor = viewModel::setThemeColorConfig,
             onClickDynamicColor = viewModel::setUseDynamicColor,
-            onShowSnackbar = { scope.launch { toastExtension.show(snackbarHostState, it) } },
+            onShowSnackbar = { message -> scope.launch { toastExtension.show(snackbarHostState, message) } },
             onTerminate = terminate,
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAdaptiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingThemeDialog(
-    userData: UserData,
+    setting: Setting,
     onClickBillingPlus: () -> Unit,
     onSelectTheme: (ThemeConfig) -> Unit,
     onSelectThemeColor: (ThemeColorConfig) -> Unit,
@@ -94,7 +96,7 @@ private fun SettingThemeDialog(
     val state = rememberTopAppBarState()
     val behavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(state)
 
-    AdaptiveScaffold(
+    Scaffold(
         modifier = modifier.nestedScroll(behavior.nestedScrollConnection),
         topBar = {
             SettingTheme {
@@ -112,7 +114,7 @@ private fun SettingThemeDialog(
                                 .clip(CircleShape)
                                 .padding(6.dp)
                                 .clickable { onTerminate.invoke() },
-                            imageVector = Icons.Outlined.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -129,7 +131,7 @@ private fun SettingThemeDialog(
             item {
                 SettingThemeTabsSection(
                     modifier = Modifier.fillMaxWidth(),
-                    themeConfig = userData.themeConfig,
+                    themeConfig = setting.themeConfig,
                     onSelectTheme = onSelectTheme,
                 )
             }
@@ -142,9 +144,9 @@ private fun SettingThemeDialog(
                     title = Res.string.setting_theme_theme_dynamic_color,
                     description = Res.string.setting_theme_theme_dynamic_color_description,
                     isEnabled = currentPlatform == Platform.Android,
-                    value = if (currentPlatform == Platform.Android) userData.isUseDynamicColor else false,
-                    onValueChanged = {
-                        if (userData.hasPrivilege) {
+                    value = if (currentPlatform == Platform.Android) setting.isUseDynamicColor else false,
+                    onValueChange = {
+                        if (setting.hasPrivilege) {
                             onClickDynamicColor.invoke(it)
                         } else {
                             onShowSnackbar.invoke(Res.string.billing_plus_toast_require_plus)
@@ -157,9 +159,9 @@ private fun SettingThemeDialog(
             item {
                 SettingThemeColorSection(
                     modifier = Modifier.fillMaxWidth(),
-                    isUseDynamicColor = userData.isUseDynamicColor,
-                    themeConfig = userData.themeConfig,
-                    themeColorConfig = userData.themeColorConfig,
+                    isUseDynamicColor = setting.isUseDynamicColor,
+                    themeConfig = setting.themeConfig,
+                    themeColorConfig = setting.themeColorConfig,
                     onSelectThemeColor = onSelectThemeColor,
                 )
             }

@@ -24,29 +24,34 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.billing_plus_item_accent_color
-import me.matsumo.fanbox.core.ui.billing_plus_item_accent_color_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_download
-import me.matsumo.fanbox.core.ui.billing_plus_item_download_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_feature
-import me.matsumo.fanbox.core.ui.billing_plus_item_feature_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_hide_ads
-import me.matsumo.fanbox.core.ui.billing_plus_item_hide_ads_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_hide_restricted
-import me.matsumo.fanbox.core.ui.billing_plus_item_hide_restricted_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_lock
-import me.matsumo.fanbox.core.ui.billing_plus_item_lock_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_material_you
-import me.matsumo.fanbox.core.ui.billing_plus_item_material_you_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_support
-import me.matsumo.fanbox.core.ui.billing_plus_item_support_description
-import me.matsumo.fanbox.core.ui.billing_plus_item_widget
-import me.matsumo.fanbox.core.ui.billing_plus_item_widget_description
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.billing_plus_item_accent_color
+import me.matsumo.fanbox.core.resources.billing_plus_item_accent_color_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_download
+import me.matsumo.fanbox.core.resources.billing_plus_item_download_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_feature
+import me.matsumo.fanbox.core.resources.billing_plus_item_feature_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_hide_ads
+import me.matsumo.fanbox.core.resources.billing_plus_item_hide_ads_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_hide_restricted
+import me.matsumo.fanbox.core.resources.billing_plus_item_hide_restricted_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_lock
+import me.matsumo.fanbox.core.resources.billing_plus_item_lock_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_material_you
+import me.matsumo.fanbox.core.resources.billing_plus_item_material_you_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_support
+import me.matsumo.fanbox.core.resources.billing_plus_item_support_description
+import me.matsumo.fanbox.core.resources.billing_plus_item_widget
+import me.matsumo.fanbox.core.resources.billing_plus_item_widget_description
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-internal fun LazyListScope.billingPlusDescriptionSection() {
+internal fun LazyListScope.billingDescriptionSection() {
+    billingCoreBenefits()
+    billingPersonalizationBenefits()
+}
+
+private fun LazyListScope.billingCoreBenefits() {
     item {
         PlusItem(
             modifier = Modifier.fillMaxWidth(),
@@ -82,7 +87,9 @@ internal fun LazyListScope.billingPlusDescriptionSection() {
             icon = Icons.Outlined.HideImage,
         )
     }
+}
 
+private fun LazyListScope.billingPersonalizationBenefits() {
     item {
         PlusItem(
             modifier = Modifier.fillMaxWidth(),
@@ -137,7 +144,7 @@ private fun PlusItem(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.padding(vertical = 16.dp),
+        modifier = modifier.padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Icon(

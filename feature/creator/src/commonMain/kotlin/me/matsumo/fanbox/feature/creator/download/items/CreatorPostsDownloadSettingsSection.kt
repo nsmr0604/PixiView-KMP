@@ -9,14 +9,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import me.matsumo.fanbox.core.ui.Res
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.creator_posts_download_ignore_file
+import me.matsumo.fanbox.core.resources.creator_posts_download_ignore_file_description
+import me.matsumo.fanbox.core.resources.creator_posts_download_ignore_free
+import me.matsumo.fanbox.core.resources.creator_posts_download_ignore_free_description
+import me.matsumo.fanbox.core.resources.creator_posts_download_ignore_keyword_placeholder
+import me.matsumo.fanbox.core.resources.creator_posts_download_message
 import me.matsumo.fanbox.core.ui.component.SettingSwitchItem
-import me.matsumo.fanbox.core.ui.creator_posts_download_ignore_file
-import me.matsumo.fanbox.core.ui.creator_posts_download_ignore_file_description
-import me.matsumo.fanbox.core.ui.creator_posts_download_ignore_free
-import me.matsumo.fanbox.core.ui.creator_posts_download_ignore_free_description
-import me.matsumo.fanbox.core.ui.creator_posts_download_ignore_keyword_placeholder
-import me.matsumo.fanbox.core.ui.creator_posts_download_message
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -44,7 +44,7 @@ internal fun CreatorPostsDownloadSettingsSection(
             title = Res.string.creator_posts_download_ignore_free,
             description = Res.string.creator_posts_download_ignore_free_description,
             value = isIgnoreFreePosts,
-            onValueChanged = onClickIgnoreFreePosts,
+            onValueChange = onClickIgnoreFreePosts,
         )
 
         SettingSwitchItem(
@@ -52,7 +52,7 @@ internal fun CreatorPostsDownloadSettingsSection(
             title = Res.string.creator_posts_download_ignore_file,
             description = Res.string.creator_posts_download_ignore_file_description,
             value = isIgnoreFiles,
-            onValueChanged = onClickIgnoreFiles,
+            onValueChange = onClickIgnoreFiles,
         )
 
         OutlinedTextField(
@@ -66,7 +66,7 @@ internal fun CreatorPostsDownloadSettingsSection(
                     text = stringResource(Res.string.creator_posts_download_ignore_keyword_placeholder),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-            }
+            },
         )
     }
 }

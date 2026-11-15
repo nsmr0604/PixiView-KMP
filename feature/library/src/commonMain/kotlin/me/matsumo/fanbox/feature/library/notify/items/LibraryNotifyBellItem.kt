@@ -29,46 +29,49 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import me.matsumo.fanbox.core.model.fanbox.FanboxBell
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
-import me.matsumo.fanbox.core.ui.Res
+import me.matsumo.fanbox.core.model.fanbox.Bell
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.im_default_user
+import me.matsumo.fanbox.core.resources.notify_title_comment
+import me.matsumo.fanbox.core.resources.notify_title_like
+import me.matsumo.fanbox.core.resources.notify_title_post_published
+import me.matsumo.fanbox.core.resources.unit_day_before
+import me.matsumo.fanbox.core.resources.unit_hour_before
+import me.matsumo.fanbox.core.resources.unit_minute_before
+import me.matsumo.fanbox.core.resources.unit_second_before
 import me.matsumo.fanbox.core.ui.extensition.FadePlaceHolder
 import me.matsumo.fanbox.core.ui.extensition.asCoilImage
 import me.matsumo.fanbox.core.ui.extensition.fanboxHeader
-import me.matsumo.fanbox.core.ui.im_default_user
-import me.matsumo.fanbox.core.ui.notify_title_comment
-import me.matsumo.fanbox.core.ui.notify_title_like
-import me.matsumo.fanbox.core.ui.notify_title_post_published
-import me.matsumo.fanbox.core.ui.unit_day_before
-import me.matsumo.fanbox.core.ui.unit_hour_before
-import me.matsumo.fanbox.core.ui.unit_minute_before
-import me.matsumo.fanbox.core.ui.unit_second_before
 import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @Composable
 internal fun LibraryNotifyBellItem(
-    bell: FanboxBell,
+    bell: Bell,
     onClickBell: (PostId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (bell) {
-        is FanboxBell.Comment -> {
+        is Bell.Comment -> {
             CommentItem(
                 modifier = modifier,
                 bell = bell,
                 onClickBell = onClickBell,
             )
         }
-        is FanboxBell.Like -> {
+
+        is Bell.Like -> {
             LikeItem(
                 modifier = modifier,
                 bell = bell,
                 onClickBell = onClickBell,
             )
         }
-        is FanboxBell.PostPublished -> {
+
+        is Bell.PostPublished -> {
             PostPublishedItem(
                 modifier = modifier,
                 bell = bell,
@@ -78,10 +81,10 @@ internal fun LibraryNotifyBellItem(
     }
 }
 
-@OptIn(ExperimentalCoilApi::class)
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun PostPublishedItem(
-    bell: FanboxBell.PostPublished,
+    bell: Bell.PostPublished,
     onClickBell: (PostId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -100,7 +103,7 @@ private fun PostPublishedItem(
                 .size(36.dp),
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .error(Res.drawable.im_default_user.asCoilImage())
-                .data(bell.post.user.iconUrl)
+                .data(bell.post.user?.iconUrl)
                 .build(),
             contentDescription = null,
         )
@@ -169,10 +172,10 @@ private fun PostPublishedItem(
     }
 }
 
-@OptIn(ExperimentalCoilApi::class)
+@OptIn(ExperimentalCoilApi::class, ExperimentalTime::class)
 @Composable
 private fun CommentItem(
-    bell: FanboxBell.Comment,
+    bell: Bell.Comment,
     onClickBell: (PostId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -225,9 +228,10 @@ private fun CommentItem(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun LikeItem(
-    bell: FanboxBell.Like,
+    bell: Bell.Like,
     onClickBell: (PostId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -278,6 +282,7 @@ private fun LikeItem(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun Instant.toRelativeTimeString(): String {
     val now = Clock.System.now()

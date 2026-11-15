@@ -2,6 +2,7 @@ package me.matsumo.fanbox.core.ui.view
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -23,17 +24,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.ComposeUIViewController
 import com.mohamedrejeb.calf.ui.sheet.BottomSheetControllerDelegate
-import com.mohamedrejeb.calf.ui.sheet.BottomSheetTransitioningDelegate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
+import me.matsumo.fanbox.core.ui.view.AdaptiveSheetState.Companion.saver
 import platform.UIKit.UIApplication
 import platform.UIKit.UIModalPresentationPopover
 import platform.UIKit.UISheetPresentationControllerDetentIdentifierLarge
 import platform.UIKit.UISheetPresentationControllerDetentIdentifierMedium
 import platform.UIKit.presentationController
 import platform.UIKit.sheetPresentationController
-import platform.UIKit.transitioningDelegate
 import kotlin.concurrent.Volatile
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +42,7 @@ actual fun SimpleBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier,
     skipPartiallyExpanded: Boolean,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val adaptiveSheetState = rememberAdaptiveSheetState(skipPartiallyExpanded)
     val typography = MaterialTheme.typography.copy()
@@ -70,13 +70,13 @@ actual fun SimpleBottomSheet(
                                 )
                             },
                         ) {
-                            Column(modifier) {
+                            Column(Modifier.fillMaxWidth()) {
                                 content.invoke(this)
                             }
                         }
                     }
                 }
-            }
+            },
         )
     }
 
@@ -90,7 +90,7 @@ actual fun SimpleBottomSheet(
             sheetManager.hide(
                 completion = {
                     adaptiveSheetState.deferredUntilHidden.complete(Unit)
-                }
+                },
             )
         } else {
             sheetManager.show()
@@ -105,10 +105,7 @@ actual fun SimpleBottomSheet(
     }
 }
 
-private class BottomSheetManager(
-    private val onDismiss: () -> Unit,
-    private val content: @Composable () -> Unit,
-) {
+private class BottomSheetManager(private val onDismiss: () -> Unit, private val content: @Composable () -> Unit) {
     private var isPresented = false
     private var isAnimating = false
 
@@ -116,13 +113,15 @@ private class BottomSheetManager(
         content.invoke()
     }
 
-    private val bottomSheetTransitioningDelegate = BottomSheetTransitioningDelegate()
-
+    @OptIn(ExperimentalMaterial3Api::class)
     private val presentationControllerDelegate = BottomSheetControllerDelegate(
         onDismiss = {
             isPresented = false
             onDismiss.invoke()
-        }
+        },
+        confirmValueChange = {
+            true // Always allow value changes
+        },
     )
 
     fun show() {
@@ -131,14 +130,13 @@ private class BottomSheetManager(
         isAnimating = true
 
         bottomSheetUIViewController.modalPresentationStyle = UIModalPresentationPopover
-        bottomSheetUIViewController.transitioningDelegate = bottomSheetTransitioningDelegate
         bottomSheetUIViewController.presentationController?.setDelegate(presentationControllerDelegate)
 
         bottomSheetUIViewController.sheetPresentationController?.setDetents(
             listOf(
                 UISheetPresentationControllerDetentIdentifierMedium,
-                UISheetPresentationControllerDetentIdentifierLarge
-            )
+                UISheetPresentationControllerDetentIdentifierLarge,
+            ),
         )
         bottomSheetUIViewController.sheetPresentationController?.prefersGrabberVisible = true
 
@@ -148,7 +146,7 @@ private class BottomSheetManager(
             completion = {
                 isPresented = true
                 isAnimating = false
-            }
+            },
         )
     }
 
@@ -156,7 +154,7 @@ private class BottomSheetManager(
      * Hides the bottom sheet.
      */
     fun hide(
-        completion: (() -> Unit)? = null
+        completion: (() -> Unit)? = null,
     ) {
         if (!isPresented || isAnimating) return
 
@@ -168,7 +166,7 @@ private class BottomSheetManager(
                 isPresented = false
                 isAnimating = false
                 completion?.invoke()
-            }
+            },
         )
     }
 }
@@ -185,13 +183,11 @@ private class AdaptiveSheetState(
         if (skipPartiallyExpanded) {
             require(initialValue != SheetValue.PartiallyExpanded) {
                 "The initial value must not be set to PartiallyExpanded if skipPartiallyExpanded " +
-                        "is set to true."
+                    "is set to true."
             }
         }
         if (skipHiddenState) {
-            require(initialValue != SheetValue.Hidden) {
-                "The initial value must not be set to Hidden if skipHiddenState is set to true."
-            }
+            require(initialValue != SheetValue.Hidden) { "The initial value must not be set to Hidden if skipHiddenState is set to true." }
         }
     }
 
@@ -224,16 +220,13 @@ private class AdaptiveSheetState(
 
     companion object {
         /**
-         * The default [Saver] implementation for [AdaptiveSheetState].
+         * The default [saver] implementation for [AdaptiveSheetState].
          */
-        fun Saver(
-            skipPartiallyExpanded: Boolean,
-            confirmValueChange: (SheetValue) -> Boolean
-        ) = Saver<AdaptiveSheetState, SheetValue>(
+        fun saver(skipPartiallyExpanded: Boolean, confirmValueChange: (SheetValue) -> Boolean) = Saver<AdaptiveSheetState, SheetValue>(
             save = { it.currentValue },
             restore = { savedValue ->
                 AdaptiveSheetState(skipPartiallyExpanded, savedValue, confirmValueChange, false)
-            }
+            },
         )
     }
 }
@@ -243,14 +236,13 @@ private class AdaptiveSheetState(
 private fun rememberAdaptiveSheetState(
     skipPartiallyExpanded: Boolean = false,
     confirmValueChange: (SheetValue) -> Boolean = { true },
-): AdaptiveSheetState {
-    return rememberSaveable(
-        skipPartiallyExpanded, confirmValueChange,
-        saver = AdaptiveSheetState.Saver(
-            skipPartiallyExpanded = skipPartiallyExpanded,
-            confirmValueChange = confirmValueChange
-        )
-    ) {
-        AdaptiveSheetState(skipPartiallyExpanded, SheetValue.Hidden, confirmValueChange, false)
-    }
+): AdaptiveSheetState = rememberSaveable(
+    skipPartiallyExpanded,
+    confirmValueChange,
+    saver = AdaptiveSheetState.saver(
+        skipPartiallyExpanded = skipPartiallyExpanded,
+        confirmValueChange = confirmValueChange,
+    ),
+) {
+    AdaptiveSheetState(skipPartiallyExpanded, SheetValue.Hidden, confirmValueChange, false)
 }

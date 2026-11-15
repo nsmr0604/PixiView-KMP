@@ -1,0 +1,123 @@
+package me.matsumo.fanbox.core.model
+
+import kotlinx.serialization.Serializable
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.PostId
+
+@Serializable
+sealed interface Destination {
+
+    @Serializable
+    data object Library : Destination
+
+    @Serializable
+    data class PostDetail(
+        val postId: PostId,
+        val pagingType: PagingType = PagingType.Unknown,
+    ) : Destination {
+        @Serializable
+        enum class PagingType {
+            Home,
+            Supported,
+            Creator,
+            Search,
+            Unknown,
+        }
+    }
+
+    @Serializable
+    data class PostImage(val postId: PostId, val index: Int) : Destination
+
+    @Serializable
+    data class PostSearch(
+        val creatorId: CreatorId,
+        val creatorQuery: String?,
+        val tag: String?,
+    ) : Destination
+
+    @Serializable
+    data class PostByCreatorSearch(val creatorId: CreatorId) : Destination
+
+    @Serializable
+    data object BookmarkedPosts : Destination
+
+    @Serializable
+    data class CreatorTop(
+        val creatorId: CreatorId,
+        val isPosts: Boolean = true,
+    ) : Destination
+
+    @Serializable
+    data class CreatorPostsDownload(val creatorId: CreatorId) : Destination
+
+    @Serializable
+    data object SupportingCreators : Destination
+
+    @Serializable
+    data object FollowingCreators : Destination
+
+    @Serializable
+    data object Payments : Destination
+
+    @Serializable
+    data class FanCard(val creatorId: CreatorId) : Destination
+
+    @Serializable
+    data object DownloadQueue : Destination
+
+    @Serializable
+    data object About : Destination
+
+    @Serializable
+    data object SettingTop : Destination
+
+    @Serializable
+    data object SettingTheme : Destination
+
+    @Serializable
+    data object SettingLicense : Destination
+
+    @Serializable
+    data object SettingDirectory : Destination
+
+    @Serializable
+    data object WelcomeTop : Destination
+
+    @Serializable
+    data object WelcomeLogin : Destination
+
+    @Serializable
+    data object WelcomeWeb : Destination
+
+    // Dialog
+
+    @Serializable
+    data class SimpleAlertDialog(val content: SimpleAlertContents) : Destination
+
+    @Serializable
+    data object SettingDeveloperDialog : Destination
+
+    @Serializable
+    data class SettingTranslationDialog(val language: String) : Destination
+
+    // Bottom Sheet
+
+    @Serializable
+    data object VersionHistoryBottomSheet : Destination
+
+    /** Plus 課金画面の BottomSheet 遷移情報。 */
+    @Serializable
+    data class BillingPlusBottomSheet(
+        val referrer: BillingReferrer,
+        val initialPlanType: BillingPlan.Type? = null,
+    ) : Destination
+
+    /** 解約予約ユーザー向けリテンション BottomSheet の遷移情報。 */
+    @Serializable
+    data class BillingRetentionBottomSheet(val isAnnualOfferShown: Boolean) : Destination
+
+    // Empty
+
+    @Serializable
+    data object Empty : Destination
+}

@@ -15,14 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import app.cash.paging.compose.LazyPagingItems
-import app.cash.paging.compose.itemContentType
 import app.cash.paging.compose.itemKey
-import io.ktor.client.utils.EmptyContent.contentType
 import kotlinx.collections.immutable.ImmutableList
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostId
 import me.matsumo.fanbox.core.ui.ads.NativeAdView
 import me.matsumo.fanbox.core.ui.component.PostGridItem
 import me.matsumo.fanbox.core.ui.component.PostItem
@@ -35,13 +33,13 @@ internal fun LibraryHomePagingItems(
     columns: Int,
     adOffset: Int,
     adInterval: Int,
-    pagingAdapter: LazyPagingItems<FanboxPost>,
-    userData: UserData,
-    bookmarkedPosts: ImmutableList<PostId>,
+    pagingAdapter: LazyPagingItems<Post>,
+    setting: Setting,
+    bookmarkedPostsIds: ImmutableList<PostId>,
     isGridMode: Boolean,
     onClickPost: (PostId) -> Unit,
     onClickPostLike: (PostId) -> Unit,
-    onClickPostBookmark: (FanboxPost, Boolean) -> Unit,
+    onClickPostBookmark: (Post, Boolean) -> Unit,
     onClickCreator: (CreatorId) -> Unit,
     onClickPlanList: (CreatorId) -> Unit,
     modifier: Modifier = Modifier,
@@ -55,38 +53,43 @@ internal fun LibraryHomePagingItems(
         verticalArrangement = Arrangement.spacedBy(if (isGridMode) 4.dp else 16.dp),
     ) {
         items(
-            count = pagingAdapter.itemCount + if(userData.hasPrivilege) 0 else (pagingAdapter.itemCount / adInterval),
+            count = pagingAdapter.itemCount + if (setting.hasPrivilege) 0 else (pagingAdapter.itemCount / adInterval),
             key = { index ->
                 when {
-                    userData.hasPrivilege -> pagingAdapter.itemKey { it.id.uniqueValue }(index)
+                    // fankt 0.1.0 で uniqueValue が削除された。ID だけではページングの境界で同じ
+                    // 投稿が二度返ったときに Key was already used になるため index を併用する。
+                    setting.hasPrivilege -> pagingAdapter.itemKey { "${it.id.value}-$index" }(index)
+
                     (index + adOffset) % adInterval == 0 -> "ad-$index"
-                    else -> pagingAdapter.itemKey { it.id.uniqueValue }(index - ((index + adOffset) / adInterval))
+
+                    else -> pagingAdapter.itemKey { "${it.id.value}-$index" }(index - ((index + adOffset) / adInterval))
                 }
-            }
+            },
         ) { index ->
-            if ((index + adOffset) % adInterval == 0 && !userData.hasPrivilege) {
+            if ((index + adOffset) % adInterval == 0 && !setting.hasPrivilege) {
                 NativeAdView(
                     modifier = Modifier.fillMaxSize(),
-                    key = "$index",
+                    key = "library-$index",
                 )
             } else {
-                pagingAdapter[if (userData.hasPrivilege) index else index - ((index + adOffset) / adInterval)]?.let { post ->
+                pagingAdapter[if (setting.hasPrivilege) index else index - ((index + adOffset) / adInterval)]?.let { post ->
                     if (isGridMode) {
                         PostGridItem(
                             modifier = Modifier.fillMaxWidth(),
-                            post = post.copy(isBookmarked = bookmarkedPosts.contains(post.id)),
-                            isHideAdultContents = userData.isHideAdultContents,
-                            isOverrideAdultContents = userData.isAllowedShowAdultContents,
-                            onClickPost = { if (!post.isRestricted) onClickPost.invoke(it) },
+                            post = post,
+                            isHideAdultContents = setting.isHideAdultContents,
+                            isOverrideAdultContents = setting.isAllowedShowAdultContents,
+                            onClickPost = onClickPost,
                         )
                     } else {
                         PostItem(
                             modifier = Modifier.fillMaxSize(),
-                            post = post.copy(isBookmarked = bookmarkedPosts.contains(post.id)),
-                            isHideAdultContents = userData.isHideAdultContents,
-                            isOverrideAdultContents = userData.isAllowedShowAdultContents,
-                            isTestUser = userData.isTestUser,
-                            onClickPost = { if (!post.isRestricted) onClickPost.invoke(it) },
+                            post = post,
+                            isBookmarked = bookmarkedPostsIds.contains(post.id),
+                            isHideAdultContents = setting.isHideAdultContents,
+                            isOverrideAdultContents = setting.isAllowedShowAdultContents,
+                            isTestUser = setting.isTestUser,
+                            onClickPost = onClickPost,
                             onClickCreator = onClickCreator,
                             onClickPlanList = onClickPlanList,
                             onClickLike = onClickPostLike,

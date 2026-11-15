@@ -6,15 +6,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
 import me.matsumo.fanbox.core.ui.component.RestrictCardItem
 import me.matsumo.fanbox.core.ui.extensition.padding
 
 internal fun LazyListScope.postDetailCardSection(
-    postDetail: FanboxPostDetail,
+    postDetail: PostDetail,
     onClickCreatorPlans: (CreatorId) -> Unit,
-    onClickDownloadImages: (List<FanboxPostDetail.ImageItem>) -> Unit,
+    onClickDownloadImages: (List<PostDetail.ImageItem>) -> Unit,
 ) {
     if (postDetail.isRestricted) {
         item {
@@ -24,7 +24,7 @@ internal fun LazyListScope.postDetailCardSection(
                     .fillMaxWidth(),
                 feeRequired = postDetail.feeRequired,
                 backgroundColor = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
-                onClickPlanList = { onClickCreatorPlans.invoke(postDetail.user.creatorId) },
+                onClickPlanList = { postDetail.user?.creatorId?.let(onClickCreatorPlans) },
             )
         }
     } else if (postDetail.body.imageItems.isNotEmpty()) {

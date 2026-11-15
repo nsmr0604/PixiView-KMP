@@ -1,0 +1,170 @@
+package me.matsumo.fanbox.feature.post.search.creator
+
+import androidx.compose.runtime.Stable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import me.matsumo.fanbox.core.common.util.suspendRunCatching
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.ScreenState
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.model.toScreenStateError
+import me.matsumo.fanbox.core.model.updateWhenIdle
+import me.matsumo.fanbox.core.repository.FanboxRepository
+import me.matsumo.fanbox.core.repository.SettingRepository
+
+class PostByCreatorSearchViewModel(
+    destination: Destination.PostByCreatorSearch,
+    private val settingRepository: SettingRepository,
+    private val fanboxRepository: FanboxRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : ViewModel() {
+
+    private val creatorId = destination.creatorId
+
+    private val allPosts = MutableSharedFlow<List<Post>>(replay = 1)
+    private val _query = MutableStateFlow("")
+    private val _screenState = MutableStateFlow<ScreenState<PostByCreatorSearchUiState>>(ScreenState.Loading)
+
+    val screenState = _screenState.asStateFlow()
+
+    /** userId ごとの最後に分かったフォロー状態。 */
+    val followStates = fanboxRepository.followStates
+    val query = _query.asStateFlow()
+
+    init {
+        fetch()
+
+        viewModelScope.launch {
+            query.collectLatest { query ->
+                val searchedPosts = if (query.isBlank()) emptyList() else searchPosts(query)
+                _screenState.updateWhenIdle { it.copy(searchedPosts = searchedPosts) }
+            }
+        }
+    }
+
+    fun fetch() {
+        viewModelScope.launch {
+            _screenState.value = ScreenState.Loading
+            _screenState.value = suspendRunCatching {
+                PostByCreatorSearchUiState(
+                    creatorId = creatorId,
+                    creatorDetail = fanboxRepository.getCreatorDetail(creatorId),
+                    setting = settingRepository.setting.first(),
+                    bookmarkedPostsIds = fanboxRepository.bookmarkedPostsIds.first(),
+                    searchedPosts = emptyList(),
+                    progress = 0f,
+                    isPrepared = false,
+                )
+            }.fold(
+                onSuccess = { ScreenState.Idle(it) },
+                onFailure = { it.toScreenStateError() },
+            )
+
+            fetchPosts()
+        }
+    }
+
+    private suspend fun fetchPosts() {
+        fanboxRepository.getCreatorAllPostsCache(creatorId)?.let { cachedPosts ->
+            allPosts.emit(cachedPosts)
+            _screenState.updateWhenIdle { it.copy(progress = 1f, isPrepared = true) }
+            return
+        }
+
+        val posts = mutableListOf<Post>()
+        val paginate = withContext(ioDispatcher) { fanboxRepository.getCreatorPostsPagination(creatorId) }
+        val max = paginate.sumOf { it.limit ?: 10 }
+
+        for (cursor in paginate) {
+            posts.addAll(
+                withContext(ioDispatcher) {
+                    fanboxRepository.getCreatorPosts(creatorId, cursor, null).contents
+                },
+            )
+
+            _screenState.updateWhenIdle { it.copy(progress = posts.size.toFloat() / max) }
+        }
+
+        val data = posts.distinctBy { post -> post.id }
+
+        fanboxRepository.setCreatorAllPostsCache(creatorId, data)
+
+        allPosts.emit(data)
+        _screenState.updateWhenIdle {
+            it.copy(
+                progress = 1f,
+                isPrepared = true,
+            )
+        }
+    }
+
+    private suspend fun searchPosts(query: String): List<Post> = allPosts.first().filter { post ->
+        val title = post.title.contains(query)
+        val excerpt = post.excerpt.contains(query)
+        val id = post.id.value.contains(query)
+
+        title || excerpt || id
+    }
+
+    fun updateQuery(query: String) {
+        _query.value = query
+    }
+
+    fun follow(creatorUserId: UserId) {
+        viewModelScope.launch {
+            suspendRunCatching { fanboxRepository.followCreator(creatorUserId) }
+        }
+    }
+
+    fun unfollow(creatorUserId: UserId) {
+        viewModelScope.launch {
+            suspendRunCatching { fanboxRepository.unfollowCreator(creatorUserId) }
+        }
+    }
+
+    fun postLike(postId: PostId) {
+        viewModelScope.launch {
+            suspendRunCatching {
+                fanboxRepository.likePost(postId)
+            }
+        }
+    }
+
+    fun postBookmark(post: Post, isBookmarked: Boolean) {
+        viewModelScope.launch {
+            (screenState.value as? ScreenState.Idle)?.also {
+                if (isBookmarked) {
+                    fanboxRepository.bookmarkPost(post)
+                } else {
+                    fanboxRepository.unbookmarkPost(post)
+                }
+            }
+        }
+    }
+}
+
+@Stable
+data class PostByCreatorSearchUiState(
+    val creatorId: CreatorId,
+    val creatorDetail: CreatorDetail,
+    val setting: Setting,
+    val bookmarkedPostsIds: List<PostId>,
+    val searchedPosts: List<Post>,
+    val progress: Float,
+    val isPrepared: Boolean,
+)

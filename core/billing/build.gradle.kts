@@ -1,16 +1,18 @@
 plugins {
     id("pixiview.primitive.kmp.common")
-    id("pixiview.primitive.kmp.android.library")
+    id("pixiview.primitive.android.library")
     id("pixiview.primitive.kmp.android")
     id("pixiview.primitive.kmp.ios")
     id("pixiview.primitive.detekt")
 }
 
-android {
-    namespace = "me.matsumo.fanbox.core.billing"
-}
-
 kotlin {
+    android {
+        namespace = "me.matsumo.fanbox.core.billing"
+
+        withHostTest {}
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:model"))
@@ -18,33 +20,17 @@ kotlin {
             implementation(project(":core:repository"))
             implementation(project(":core:datastore"))
             implementation(project(":core:logs"))
+            implementation(project(":core:resources"))
+
+            implementation(libs.bundles.purchase)
         }
 
-        androidMain.dependencies {
-            api(libs.bundles.billing)
+        commonTest.dependencies {
+            implementation(kotlin("test"))
         }
 
-        iosArm64()
-    }
-
-    if (System.getProperty("os.name").lowercase().contains("mac")) {
-        listOf(iosArm64()).forEach {
-            it.compilations {
-                val main by getting {
-                    cinterops {
-                        create("BillingSwift")
-                    }
-
-                    swiftklib {
-                        create("BillingSwift") {
-                            minIos = 15
-
-                            path = file("../../iosApp/iosApp/Billing")
-                            packageName("me.matsumo.fanbox.core.billing.swift")
-                        }
-                    }
-                }
-            }
+        getByName("androidHostTest").dependencies {
+            implementation(kotlin("test-junit"))
         }
     }
 }

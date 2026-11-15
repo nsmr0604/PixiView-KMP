@@ -3,44 +3,67 @@ package me.matsumo.fanbox.core.repository.paging
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import kotlinx.coroutines.flow.first
-import me.matsumo.fanbox.core.common.util.suspendRunCatching
-import me.matsumo.fanbox.core.model.fanbox.FanboxCursor
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
+import me.matsumo.fanbox.core.model.fanbox.Cursor
+import me.matsumo.fanbox.core.model.fanbox.Post
 import me.matsumo.fanbox.core.repository.FanboxRepository
+import kotlin.coroutines.cancellation.CancellationException
 
-class HomePostsPagingSource(
-    private val fanboxRepository: FanboxRepository,
-    private val isHideRestricted: Boolean,
-) : PagingSource<FanboxCursor, FanboxPost>() {
+class HomePostsPagingSource(private val fanboxRepository: FanboxRepository, private val isHideRestricted: Boolean) : PagingSource<Cursor, Post>() {
 
     override val keyReuseSupported: Boolean = true
 
-    override suspend fun load(params: LoadParams<FanboxCursor>): LoadResult<FanboxCursor, FanboxPost> {
-        return suspendRunCatching {
-            fanboxRepository.getHomePosts(params.key, params.loadSize)
-        }.fold(
-            onSuccess = { page ->
-                val contents = page.contents.toMutableList()
+    override suspend fun load(params: LoadParams<Cursor>): LoadResult<Cursor, Post> = try {
+        val blockedCreators = fanboxRepository.blockedCreators.first()
+        var cursor = params.key
+        val visitedCursor = mutableSetOf<Cursor?>()
+        var loadResult: LoadResult<Cursor, Post>? = null
 
-                if (isHideRestricted) {
-                    contents.removeAll { it.isRestricted }
-                }
+        while (loadResult == null) {
+            if (!visitedCursor.add(cursor)) {
+                loadResult = LoadResult.Page<Cursor, Post>(
+                    data = emptyList(),
+                    nextKey = null,
+                    prevKey = null,
+                )
+                break
+            }
 
-                for (blockedCreator in fanboxRepository.blockedCreators.first()) {
-                    contents.removeAll { it.user.creatorId == blockedCreator }
-                }
+            val page = fanboxRepository.getHomePosts(cursor, params.loadSize)
+            val contents = page.contents
+                .filterNot { isHideRestricted && it.isRestricted }
+                .filterNot { it.user?.creatorId in blockedCreators }
 
-                LoadResult.Page(
+            loadResult = when {
+                contents.isNotEmpty() -> LoadResult.Page(
                     data = contents,
                     nextKey = page.cursor,
                     prevKey = null,
                 )
-            },
-            onFailure = {
-                LoadResult.Error(it)
-            },
+
+                page.cursor == null -> LoadResult.Page(
+                    data = emptyList(),
+                    nextKey = null,
+                    prevKey = null,
+                )
+
+                else -> null
+            }
+
+            if (loadResult == null) {
+                cursor = page.cursor
+            }
+        }
+
+        loadResult ?: LoadResult.Page<Cursor, Post>(
+            data = emptyList(),
+            nextKey = null,
+            prevKey = null,
         )
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: Throwable) {
+        LoadResult.Error(exception)
     }
 
-    override fun getRefreshKey(state: PagingState<FanboxCursor, FanboxPost>): FanboxCursor? = null
+    override fun getRefreshKey(state: PagingState<Cursor, Post>): Cursor? = null
 }

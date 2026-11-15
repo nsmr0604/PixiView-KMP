@@ -5,18 +5,24 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -34,184 +40,286 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.cash.paging.compose.LazyPagingItems
 import app.cash.paging.compose.collectAsLazyPagingItems
+import com.svenjacobs.reveal.Key
+import com.svenjacobs.reveal.Reveal
+import com.svenjacobs.reveal.RevealOverlayArrangement
+import com.svenjacobs.reveal.RevealOverlayScope
+import com.svenjacobs.reveal.RevealShape
+import com.svenjacobs.reveal.RevealState
+import com.svenjacobs.reveal.rememberRevealState
+import com.svenjacobs.reveal.revealable
+import com.svenjacobs.reveal.shapes.balloon.Arrow
+import io.github.aakira.napier.Napier
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorDetail
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorPlan
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorTag
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import me.matsumo.fanbox.core.model.BillingReferrer
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.RewardUsage
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.SimpleAlertContents
+import me.matsumo.fanbox.core.model.TranslationState
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.CreatorPlan
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.model.fanbox.Tag
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.billing_plus_toast_require_plus
+import me.matsumo.fanbox.core.resources.creator_download_require_plus_title
+import me.matsumo.fanbox.core.resources.creator_reward_unlock_bulk_download_feature
+import me.matsumo.fanbox.core.resources.creator_reward_unlock_creator_search_feature
+import me.matsumo.fanbox.core.resources.creator_reward_unlock_require_plus_message
+import me.matsumo.fanbox.core.resources.creator_reward_unlock_search_title
+import me.matsumo.fanbox.core.resources.creator_reward_unlock_translation_feature
+import me.matsumo.fanbox.core.resources.creator_reward_unlock_translation_title
+import me.matsumo.fanbox.core.resources.creator_tab_plans
+import me.matsumo.fanbox.core.resources.creator_tab_posts
+import me.matsumo.fanbox.core.resources.reveal_creator_top_fab
+import me.matsumo.fanbox.core.resources.reveal_creator_top_search
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
 import me.matsumo.fanbox.core.ui.LazyPagingItemsLoadContents
-import me.matsumo.fanbox.core.ui.Res
+import me.matsumo.fanbox.core.ui.appName
 import me.matsumo.fanbox.core.ui.component.CollapsingToolbarScaffold
 import me.matsumo.fanbox.core.ui.component.ScrollStrategy
 import me.matsumo.fanbox.core.ui.component.rememberCollapsingToolbarScaffoldState
-import me.matsumo.fanbox.core.ui.creator_tab_plans
-import me.matsumo.fanbox.core.ui.creator_tab_posts
+import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
 import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
-import me.matsumo.fanbox.core.ui.view.SimpleAlertContents
+import me.matsumo.fanbox.core.ui.extensition.OverlayText
+import me.matsumo.fanbox.core.ui.extensition.ToastExtension
+import me.matsumo.fanbox.core.ui.extensition.revealByStep
 import me.matsumo.fanbox.feature.creator.top.items.CreatorTopDescriptionDialog
 import me.matsumo.fanbox.feature.creator.top.items.CreatorTopHeader
 import me.matsumo.fanbox.feature.creator.top.items.CreatorTopMenuDialog
 import me.matsumo.fanbox.feature.creator.top.items.CreatorTopPlansScreen
 import me.matsumo.fanbox.feature.creator.top.items.CreatorTopPostsScreen
 import me.matsumo.fanbox.feature.creator.top.items.CreatorTopRewardAdDialog
+import me.matsumo.fanbox.feature.creator.top.items.CreatorTopRewardAdPreloader
+import me.matsumo.fanbox.feature.creator.top.items.CreatorTopTopAppBar
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
+import kotlin.time.Duration.Companion.milliseconds
+
+internal enum class CreatorTopRevealKeys {
+    Search,
+    Fab,
+}
 
 @Composable
 internal fun CreatorTopRoute(
-    creatorId: CreatorId,
-    isPosts: Boolean,
-    navigateToPostDetail: (PostId) -> Unit,
-    navigateToPostSearch: (String, CreatorId) -> Unit,
-    navigateToDownloadAll: (CreatorId) -> Unit,
-    navigateToBillingPlus: (String?) -> Unit,
+    destination: Destination.CreatorTop,
+    navigateTo: (Destination) -> Unit,
     navigateToAlertDialog: (SimpleAlertContents, () -> Unit, () -> Unit) -> Unit,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: CreatorTopViewModel = koinViewModel(),
+    viewModel: CreatorTopViewModel = koinViewModel { parametersOf(destination) },
     navigatorExtension: NavigatorExtension = koinInject(),
+    toastExtension: ToastExtension = koinInject(),
 ) {
     val screenState by viewModel.screenState.collectAsStateWithLifecycle()
+    val followStates by viewModel.followStates.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(creatorId) {
-        if (screenState !is ScreenState.Idle) {
-            viewModel.fetch(creatorId)
-        }
-    }
+    val revealState = rememberRevealState()
+    val revealOverlayContainerColor = MaterialTheme.colorScheme.tertiaryContainer
+    val revealOverlayContentColor = MaterialTheme.colorScheme.onTertiaryContainer
+
+    val snackbarHostState = LocalSnackbarHostState.current
+    val requirePlus = stringResource(Res.string.billing_plus_toast_require_plus, appName)
 
     AsyncLoadContents(
         modifier = modifier,
         screenState = screenState,
-        retryAction = { viewModel.fetch(creatorId) },
+        retryAction = viewModel::fetch,
+        terminate = terminate,
     ) { uiState ->
         val creatorPostsPaging = uiState.creatorPostsPaging.collectAsLazyPagingItems()
 
-        CreatorTopScreen(
+        Reveal(
             modifier = Modifier.fillMaxSize(),
-            isPosts = isPosts,
-            isBlocked = uiState.isBlocked,
-            isAbleToReward = uiState.isAbleToReward,
-            userData = uiState.userData,
-            bookmarkedPosts = uiState.bookmarkedPosts.toImmutableList(),
-            creatorDetail = uiState.creatorDetail,
-            creatorPlans = uiState.creatorPlans.toImmutableList(),
-            creatorTags = uiState.creatorTags.toImmutableList(),
-            creatorPostsPaging = creatorPostsPaging,
-            onClickAllDownload = navigateToDownloadAll,
-            onClickBillingPlus = { navigateToBillingPlus.invoke("all_download") },
-            onClickPost = navigateToPostDetail,
-            onClickPlan = { navigatorExtension.navigateToWebPage(it.planBrowserUrl, CreatorTopRoute) },
-            onClickTag = { navigateToPostSearch.invoke(it.name, uiState.creatorDetail.creatorId) },
-            onTerminate = terminate,
-            onClickLink = { navigatorExtension.navigateToWebPage(it, CreatorTopRoute) },
-            onClickFollow = viewModel::follow,
-            onClickUnfollow = viewModel::unfollow,
-            onClickPostBookmark = viewModel::postBookmark,
-            onShowBlockDialog = {
-                navigateToAlertDialog.invoke(
-                    SimpleAlertContents.CreatorBlock,
-                    {
-                        scope.launch {
-                            viewModel.blockCreator(creatorId)
-                            terminate.invoke()
-                        }
-                    },
-                    { /* do nothing */ },
+            onOverlayClick = { scope.launch { revealState.hide() } },
+            revealState = revealState,
+            overlayContent = { key ->
+                RevealOverlayContent(
+                    key = key,
+                    containerColor = revealOverlayContainerColor,
+                    contentColor = revealOverlayContentColor,
                 )
             },
-            onShowUnblockDialog = {
-                navigateToAlertDialog.invoke(
-                    SimpleAlertContents.CreatorUnblock,
-                    {
-                        scope.launch {
-                            viewModel.unblockCreator(creatorId)
-                            viewModel.fetch(creatorId)
-                            creatorPostsPaging.refresh()
-                        }
-                    },
-                    { terminate.invoke() },
-                )
-            },
-            onRewarded = viewModel::rewarded,
-            onClickPostLike = viewModel::postLike,
-        )
+        ) {
+            CreatorTopScreen(
+                modifier = Modifier.fillMaxSize(),
+                revealState = revealState,
+                shouldShowReveal = uiState.shouldShowReveal,
+                isPosts = destination.isPosts,
+                isBlocked = uiState.isBlocked,
+                rewardAvailability = uiState.rewardAvailability,
+                setting = uiState.setting,
+                bookmarkedPostsIds = uiState.bookmarkedPostsIds.toImmutableList(),
+                creatorDetail = uiState.creatorDetail,
+                isFollowed = uiState.creatorDetail.isFollowedIn(followStates),
+                creatorPlans = uiState.creatorPlans.toImmutableList(),
+                creatorTags = uiState.creatorTags.toImmutableList(),
+                creatorPostsPaging = creatorPostsPaging,
+                descriptionTransState = uiState.descriptionTransState,
+                onClickSearch = { navigateTo(Destination.PostByCreatorSearch(it)) },
+                onClickAllDownload = { navigateTo(Destination.CreatorPostsDownload(it)) },
+                onClickPost = { navigateTo(Destination.PostDetail(it, Destination.PostDetail.PagingType.Creator)) },
+                onClickPlan = { navigatorExtension.navigateToWebPage(it.planBrowserUrl, "") },
+                onClickTag = { navigateTo(Destination.PostSearch(uiState.creatorDetail.creatorId, null, it.name)) },
+                onTerminate = terminate,
+                onClickLink = { navigatorExtension.navigateToWebPage(it, "") },
+                onClickFollow = viewModel::follow,
+                onClickUnfollow = viewModel::unfollow,
+                onClickPostBookmark = viewModel::postBookmark,
+                onClickBillingPlus = {
+                    scope.launch { toastExtension.show(snackbarHostState, requirePlus) }
+                    navigateTo(Destination.BillingPlusBottomSheet(it))
+                },
+                onShowBlockDialog = {
+                    navigateToAlertDialog.invoke(
+                        SimpleAlertContents.CreatorBlock,
+                        {
+                            scope.launch {
+                                viewModel.blockCreator()
+                                terminate.invoke()
+                            }
+                        },
+                        { /* do nothing */ },
+                    )
+                },
+                onShowUnblockDialog = {
+                    navigateToAlertDialog.invoke(
+                        SimpleAlertContents.CreatorUnblock,
+                        {
+                            scope.launch {
+                                viewModel.unblockCreator()
+                                viewModel.fetch()
+                                creatorPostsPaging.refresh()
+                            }
+                        },
+                        { terminate.invoke() },
+                    )
+                },
+                onClickTranslateDescription = viewModel::translateDescription,
+                onRevealComplete = viewModel::finishReveal,
+                onReward = viewModel::rewarded,
+                onClickPostLike = viewModel::postLike,
+            )
+        }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
+// FAB の初期の非表示状態から、composition 適用後に表示アニメーションを開始する。
+@Suppress("UnnecessaryLaunchedEffect")
 private fun CreatorTopScreen(
+    revealState: RevealState,
     isPosts: Boolean,
     isBlocked: Boolean,
-    isAbleToReward: Boolean,
-    creatorDetail: FanboxCreatorDetail,
-    userData: UserData,
-    bookmarkedPosts: ImmutableList<PostId>,
-    creatorPlans: ImmutableList<FanboxCreatorPlan>,
-    creatorTags: ImmutableList<FanboxCreatorTag>,
-    creatorPostsPaging: LazyPagingItems<FanboxPost>,
+    rewardAvailability: CreatorTopRewardAvailability,
+    shouldShowReveal: Boolean,
+    creatorDetail: CreatorDetail,
+    isFollowed: Boolean,
+    setting: Setting,
+    bookmarkedPostsIds: ImmutableList<PostId>,
+    creatorPlans: ImmutableList<CreatorPlan>,
+    creatorTags: ImmutableList<Tag>,
+    creatorPostsPaging: LazyPagingItems<Post>,
+    descriptionTransState: TranslationState<String>,
+    onClickSearch: (CreatorId) -> Unit,
     onClickAllDownload: (CreatorId) -> Unit,
-    onClickBillingPlus: () -> Unit,
+    onClickBillingPlus: (BillingReferrer) -> Unit,
     onClickPost: (PostId) -> Unit,
     onClickPostLike: (PostId) -> Unit,
-    onClickPostBookmark: (FanboxPost, Boolean) -> Unit,
-    onClickPlan: (FanboxCreatorPlan) -> Unit,
-    onClickTag: (FanboxCreatorTag) -> Unit,
+    onClickPostBookmark: (Post, Boolean) -> Unit,
+    onClickPlan: (CreatorPlan) -> Unit,
+    onClickTag: (Tag) -> Unit,
     onClickLink: (String) -> Unit,
-    onClickFollow: suspend (String) -> Result<Unit>,
-    onClickUnfollow: suspend (String) -> Result<Unit>,
+    onClickFollow: (UserId) -> Unit,
+    onClickUnfollow: (UserId) -> Unit,
     onShowBlockDialog: (SimpleAlertContents) -> Unit,
     onShowUnblockDialog: (SimpleAlertContents) -> Unit,
-    onRewarded: () -> Unit,
+    onClickTranslateDescription: (String) -> Unit,
+    onRevealComplete: () -> Unit,
+    onReward: (RewardUsage) -> Unit,
     onTerminate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val density = LocalDensity.current
+
     val state = rememberCollapsingToolbarScaffoldState()
     val pagerState = rememberPagerState(initialPage = if (isPosts) 0 else 1) { 2 }
     val scope = rememberCoroutineScope()
 
-    val postsListState = rememberLazyListState()
+    val insets = WindowInsets.statusBars.asPaddingValues()
+    val topInset = insets.calculateTopPadding()
+
     val postsGridState = rememberLazyGridState()
     val plansListState = rememberLazyListState()
 
-    var isShowRewardAdDialog by remember { mutableStateOf(false) }
+    var topAppBarHeight by remember { mutableStateOf(0.dp) }
+    var rewardUsage by rememberSaveable(stateSaver = CreatorTopRewardUsageSaver) { mutableStateOf<RewardUsage?>(null) }
     var isShowDescriptionDialog by remember { mutableStateOf(false) }
     var isShowMenuDialog by remember { mutableStateOf(false) }
     var isVisibleFAB by remember { mutableStateOf(false) }
+
+    val shouldPreloadRewardAd = shouldPreloadCreatorRewardAd(setting, rewardAvailability)
 
     val tabs = listOf(
         CreatorTab.POSTS,
         CreatorTab.PLANS,
     )
 
+    BackHandler(revealState.isVisible) {
+        // do nothing
+    }
+
     LaunchedEffect(true) {
         isVisibleFAB = true
     }
 
+    CreatorTopRewardAdPreloader(shouldPreload = shouldPreloadRewardAd)
+
     LaunchedEffect(isBlocked) {
         if (isBlocked) {
-            delay(1000)
+            delay(1000.milliseconds)
             onShowUnblockDialog.invoke(SimpleAlertContents.CreatorUnblock)
+        }
+    }
+
+    if (shouldShowReveal) {
+        LaunchedEffect(shouldShowReveal) {
+            delay(500.milliseconds)
+            revealState.revealByStep(
+                keys = listOf(
+                    CreatorTopRevealKeys.Search,
+                    CreatorTopRevealKeys.Fab,
+                ),
+                onCompleted = onRevealComplete,
+            )
         }
     }
 
@@ -219,7 +327,9 @@ private fun CreatorTopScreen(
         CollapsingToolbarScaffold(
             modifier = Modifier.fillMaxSize(),
             state = state,
-            toolbarModifier = Modifier.verticalScroll(rememberScrollState()),
+            toolbarModifier = Modifier
+                .heightIn(min = topInset + topAppBarHeight)
+                .verticalScroll(rememberScrollState()),
             toolbar = {
                 Spacer(
                     modifier = Modifier
@@ -235,13 +345,12 @@ private fun CreatorTopScreen(
                             alpha = state.toolbarState.progress * 10
                         },
                     creatorDetail = creatorDetail,
-                    onClickTerminate = onTerminate,
+                    isFollowed = isFollowed,
                     onClickLink = onClickLink,
                     onClickFollow = onClickFollow,
                     onClickUnfollow = onClickUnfollow,
                     onClickSupporting = onClickLink,
                     onClickDescription = { isShowDescriptionDialog = true },
-                    onClickAction = { isShowMenuDialog = true },
                 )
             },
             scrollStrategy = ScrollStrategy.ExitUntilCollapsed,
@@ -257,20 +366,13 @@ private fun CreatorTopScreen(
                             label = stringResource(tab.titleRes),
                             onClick = {
                                 scope.launch {
-                                    if (pagerState.currentPage != index) {
-                                        pagerState.animateScrollToPage(index)
-                                    } else {
-                                        when (tabs[index]) {
-                                            CreatorTab.POSTS -> {
-                                                postsListState.animateScrollToItem(0)
-                                                postsGridState.animateScrollToItem(0)
-                                            }
-
-                                            CreatorTab.PLANS -> {
-                                                plansListState.animateScrollToItem(0)
-                                            }
-                                        }
-                                    }
+                                    scrollCreatorTab(
+                                        pagerState = pagerState,
+                                        index = index,
+                                        tab = tabs[index],
+                                        postsGridState = postsGridState,
+                                        plansListState = plansListState,
+                                    )
                                 }
                             },
                         )
@@ -290,10 +392,9 @@ private fun CreatorTopScreen(
                             ) {
                                 CreatorTopPostsScreen(
                                     modifier = Modifier.fillMaxSize(),
-                                    listState = postsListState,
-                                    gridState = postsGridState,
-                                    userData = userData,
-                                    bookmarkedPosts = bookmarkedPosts.toImmutableList(),
+                                    state = postsGridState,
+                                    setting = setting,
+                                    bookmarkedPostsIds = bookmarkedPostsIds.toImmutableList(),
                                     pagingAdapter = creatorPostsPaging,
                                     creatorTags = creatorTags,
                                     onClickPost = onClickPost,
@@ -320,13 +421,38 @@ private fun CreatorTopScreen(
                                 state = plansListState,
                                 creatorPlans = creatorPlans,
                                 onClickPlan = onClickPlan,
-                                onClickFanbox = { onClickLink.invoke("https://www.fanbox.cc/@${creatorDetail.creatorId}") }
+                                onClickFanbox = {
+                                    onClickLink.invoke("https://www.fanbox.cc/@${creatorDetail.creatorId.value}")
+                                },
                             )
                         }
                     }
                 }
             }
         }
+
+        CreatorTopTopAppBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .onGloballyPositioned {
+                    topAppBarHeight = with(density) { it.size.height.toDp() }
+                    Napier.d { "topAppBarHeight: $topAppBarHeight" }
+                },
+            title = creatorDetail.user?.name.orEmpty(),
+            isShowTitle = state.toolbarState.progress == 0f,
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            revealState = revealState,
+            onClickNavigation = onTerminate,
+            onClickActions = { isShowMenuDialog = true },
+            onClickSearch = {
+                if (setting.hasPrivilege) {
+                    onClickSearch.invoke(creatorDetail.creatorId)
+                } else {
+                    rewardUsage = RewardUsage.CreatorSearch
+                }
+            },
+        )
 
         AnimatedVisibility(
             modifier = Modifier
@@ -338,12 +464,17 @@ private fun CreatorTopScreen(
             exit = fadeOut() + scaleOut(),
         ) {
             FloatingActionButton(
+                modifier = Modifier.revealable(
+                    key = CreatorTopRevealKeys.Fab,
+                    state = revealState,
+                    shape = RevealShape.RoundRect(8.dp),
+                ),
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 onClick = {
-                    if (userData.hasPrivilege) {
+                    if (setting.canBulkDownload) {
                         onClickAllDownload.invoke(creatorDetail.creatorId)
                     } else {
-                        isShowRewardAdDialog = true
+                        rewardUsage = RewardUsage.BulkDownload
                     }
                 },
             ) {
@@ -355,25 +486,39 @@ private fun CreatorTopScreen(
         }
     }
 
-    if (isShowRewardAdDialog) {
+    val activeRewardUsage = rewardUsage
+
+    if (activeRewardUsage != null) {
         CreatorTopRewardAdDialog(
-            isAbleToReward = isAbleToReward,
-            onRewarded = {
-                onRewarded.invoke()
-                onClickAllDownload.invoke(creatorDetail.creatorId)
-                isShowRewardAdDialog = false
+            title = activeRewardUsage.rewardUnlockTitle(),
+            message = activeRewardUsage.rewardUnlockMessage(),
+            isAbleToReward = rewardAvailability.isAbleToReward(activeRewardUsage),
+            onReward = {
+                onReward.invoke(activeRewardUsage)
+                rewardUsage = null
+
+                executeCreatorReward(
+                    usage = activeRewardUsage,
+                    creatorDetail = creatorDetail,
+                    onClickAllDownload = onClickAllDownload,
+                    onClickSearch = onClickSearch,
+                    onClickTranslateDescription = onClickTranslateDescription,
+                )
             },
             onClickShowPlus = {
-                onClickBillingPlus.invoke()
-                isShowRewardAdDialog = false
+                onClickBillingPlus.invoke(activeRewardUsage.billingPlusKey())
+                rewardUsage = null
+
+                if (activeRewardUsage == RewardUsage.CreatorTranslation) {
+                    isShowDescriptionDialog = false
+                }
             },
-            onDismissRequest = { isShowRewardAdDialog = false },
+            onDismissRequest = { rewardUsage = null },
         )
     }
 
     if (isShowMenuDialog) {
         CreatorTopMenuDialog(
-            isVisible = isShowMenuDialog,
             onClickBlock = { onShowBlockDialog.invoke(SimpleAlertContents.CreatorBlock) },
             onDismissRequest = { isShowMenuDialog = false },
         )
@@ -382,7 +527,14 @@ private fun CreatorTopScreen(
     if (isShowDescriptionDialog) {
         CreatorTopDescriptionDialog(
             description = creatorDetail.description,
-            onLinkClick = onClickLink,
+            translationState = descriptionTransState,
+            onTranslateClick = {
+                if (setting.hasPrivilege) {
+                    onClickTranslateDescription.invoke(it)
+                } else {
+                    rewardUsage = RewardUsage.CreatorTranslation
+                }
+            },
             onDismissRequest = { isShowDescriptionDialog = false },
         )
     }
@@ -409,7 +561,113 @@ private fun CreatorTab(
     )
 }
 
+@Composable
+private fun RevealOverlayScope.RevealOverlayContent(
+    key: Key,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    when (key) {
+        CreatorTopRevealKeys.Search -> {
+            OverlayText(
+                modifier = modifier.align(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = RevealOverlayArrangement.Bottom,
+                ),
+                text = stringResource(Res.string.reveal_creator_top_search, appName),
+                arrow = Arrow.top(horizontalAlignment = Alignment.End),
+                containerColor = containerColor,
+                contentColor = contentColor,
+            )
+        }
+
+        CreatorTopRevealKeys.Fab -> {
+            OverlayText(
+                modifier = modifier.align(
+                    horizontalArrangement = RevealOverlayArrangement.Start,
+                ),
+                text = stringResource(Res.string.reveal_creator_top_fab, appName),
+                arrow = Arrow.end(),
+                containerColor = containerColor,
+                contentColor = contentColor,
+            )
+        }
+    }
+}
+
 private enum class CreatorTab(val titleRes: StringResource) {
     POSTS(Res.string.creator_tab_posts),
     PLANS(Res.string.creator_tab_plans),
+}
+
+@Composable
+private fun RewardUsage.rewardUnlockTitle(): String = stringResource(
+    when (this) {
+        RewardUsage.BulkDownload -> Res.string.creator_download_require_plus_title
+        RewardUsage.CreatorSearch -> Res.string.creator_reward_unlock_search_title
+        RewardUsage.CreatorTranslation -> Res.string.creator_reward_unlock_translation_title
+    },
+)
+
+@Composable
+private fun RewardUsage.rewardUnlockMessage(): String = stringResource(
+    Res.string.creator_reward_unlock_require_plus_message,
+    rewardUnlockFeatureName(),
+    appName,
+)
+
+@Composable
+private fun RewardUsage.rewardUnlockFeatureName(): String = stringResource(
+    when (this) {
+        RewardUsage.BulkDownload -> Res.string.creator_reward_unlock_bulk_download_feature
+        RewardUsage.CreatorSearch -> Res.string.creator_reward_unlock_creator_search_feature
+        RewardUsage.CreatorTranslation -> Res.string.creator_reward_unlock_translation_feature
+    },
+)
+
+private fun RewardUsage.billingPlusKey(): BillingReferrer = when (this) {
+    RewardUsage.BulkDownload -> BillingReferrer.CREATOR_BULK_DOWNLOAD
+    RewardUsage.CreatorSearch -> BillingReferrer.CREATOR_SEARCH
+    RewardUsage.CreatorTranslation -> BillingReferrer.CREATOR_TRANSLATE
+}
+
+private fun shouldPreloadCreatorRewardAd(setting: Setting, availability: CreatorTopRewardAvailability): Boolean {
+    val canRewardBulkDownload = !setting.canBulkDownload && availability.bulkDownload
+    val canRewardCreatorSearch = !setting.hasPrivilege && availability.creatorSearch
+    val canRewardCreatorTranslation = !setting.hasPrivilege && availability.creatorTranslation
+
+    val hasRewardableUsage = canRewardBulkDownload || canRewardCreatorSearch || canRewardCreatorTranslation
+    return hasRewardableUsage
+}
+
+private suspend fun scrollCreatorTab(
+    pagerState: PagerState,
+    index: Int,
+    tab: CreatorTab,
+    postsGridState: LazyGridState,
+    plansListState: LazyListState,
+) {
+    if (pagerState.currentPage != index) {
+        pagerState.animateScrollToPage(index)
+    } else {
+        when (tab) {
+            CreatorTab.POSTS -> postsGridState.animateScrollToItem(0)
+            CreatorTab.PLANS -> plansListState.animateScrollToItem(0)
+        }
+    }
+}
+
+private fun executeCreatorReward(
+    usage: RewardUsage,
+    creatorDetail: CreatorDetail,
+    onClickAllDownload: (CreatorId) -> Unit,
+    onClickSearch: (CreatorId) -> Unit,
+    onClickTranslateDescription: (String) -> Unit,
+) {
+    when (usage) {
+        RewardUsage.BulkDownload -> onClickAllDownload.invoke(creatorDetail.creatorId)
+        RewardUsage.CreatorSearch -> onClickSearch.invoke(creatorDetail.creatorId)
+        RewardUsage.CreatorTranslation -> onClickTranslateDescription.invoke(creatorDetail.description)
+    }
 }

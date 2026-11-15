@@ -1,13 +1,17 @@
 package me.matsumo.fanbox.core.common.util
 
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toNSDate
 import kotlinx.datetime.toNSDateComponents
 import platform.Foundation.NSDateFormatter
+import platform.Foundation.NSLocale
 import platform.Foundation.NSString
+import platform.Foundation.availableLocaleIdentifiers
 import platform.Foundation.stringWithFormat
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
+@OptIn(ExperimentalTime::class)
 actual fun Instant.format(pattern: String): String {
     val dateFormatter = NSDateFormatter()
     dateFormatter.dateFormat = pattern
@@ -34,6 +38,8 @@ actual fun String.format(vararg args: Any?): String {
 
         returnString += when (arg) {
             is Double -> NSString.stringWithFormat(newStrings[i] + singleFormats[i], args[i] as Double)
+            is Float -> NSString.stringWithFormat(newStrings[i] + singleFormats[i], (args[i] as Float).toDouble())
+            is Long -> NSString.stringWithFormat(newStrings[i] + singleFormats[i], args[i] as Long)
             is Int -> NSString.stringWithFormat(newStrings[i] + singleFormats[i], args[i] as Int)
             else -> NSString.stringWithFormat(newStrings[i] + "%@", args[i])
         }
@@ -44,4 +50,12 @@ actual fun String.format(vararg args: Any?): String {
     }
 
     return returnString
+}
+
+actual fun getAvailableLanguageTags(): List<String> = NSLocale.availableLocaleIdentifiers().map { localeId ->
+    when (localeId) {
+        is String -> localeId
+        is NSString -> localeId.toString()
+        else -> localeId.toString()
+    }
 }

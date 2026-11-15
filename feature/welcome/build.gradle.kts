@@ -1,17 +1,21 @@
+@file:Suppress("UnusedPrivateProperty")
+
 plugins {
     id("pixiview.primitive.kmp.common")
-    id("pixiview.primitive.kmp.android.library")
-    id("pixiview.primitive.kmp.android.compose")
+    id("pixiview.primitive.android.library")
+    id("pixiview.primitive.kmp.compose")
     id("pixiview.primitive.kmp.android")
     id("pixiview.primitive.kmp.ios")
     id("pixiview.primitive.detekt")
 }
 
-android {
-    namespace = "me.matsumo.fanbox.feature.welcome"
-}
-
 kotlin {
+    android {
+        namespace = "me.matsumo.fanbox.feature.welcome"
+
+        withHostTest {}
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:common"))
@@ -20,10 +24,17 @@ kotlin {
             implementation(project(":core:datastore"))
             implementation(project(":core:ui"))
             implementation(project(":core:logs"))
+            implementation(project(":core:resources"))
 
             implementation(libs.moko.permissions)
             implementation(libs.moko.permissions.compose)
             implementation(libs.webview.compose)
+        }
+
+        val androidHostTest by getting {
+            dependencies {
+                implementation(kotlin("test-junit"))
+            }
         }
     }
 }

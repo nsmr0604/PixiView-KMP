@@ -27,9 +27,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -57,14 +59,14 @@ import me.matsumo.fanbox.core.ui.component.snapper.rememberSnapperFlingBehavior
 /**
  * Library-wide switch to turn on debug logging.
  */
-internal const val DebugLog = false
+internal const val DEBUG_LOG = false
 
 @Deprecated(
     """
 accompanist/pager is deprecated.
 The androidx.compose equivalent of Pager is androidx.compose.foundation.pager.Pager.
 For more migration information, please visit https://google.github.io/accompanist/pager/#migration
-"""
+""",
 )
 @RequiresOptIn(message = "Accompanist Pager is experimental. The API may be changed in the future.")
 @Retention(AnnotationRetention.BINARY)
@@ -78,7 +80,7 @@ public annotation class ExperimentalPagerApi
 accompanist/pager is deprecated.
 The androidx.compose equivalent of Pager is androidx.compose.foundation.pager.Pager.
 For more migration information, please visit https://google.github.io/accompanist/pager/#migration
-"""
+""",
 )
 public object PagerDefaults {
     /**
@@ -87,7 +89,6 @@ public object PagerDefaults {
      */
     @OptIn(ExperimentalSnapperApi::class)
     @ExperimentalSnapperApi
-    @Suppress("MemberVisibilityCanBePrivate")
     @Deprecated("MaximumFlingDistance has been deprecated in Snapper")
     public val singlePageFlingDistance: (SnapperLayoutInfo) -> Float = { layoutInfo ->
         // We can scroll up to the scrollable size of the lazy layout
@@ -126,10 +127,11 @@ public object PagerDefaults {
             accompanist/pager is deprecated.
             The androidx.compose equivalent of Pager is androidx.compose.foundation.pager.Pager.
             For more migration information, please visit https://google.github.io/accompanist/pager/#migration
-    """
+    """,
     )
     @Composable
     @ExperimentalSnapperApi
+    // 未使用の Pager/Snapper fork の削除・整理を追跡する: https://github.com/matsumo0922/PixiView-KMP/issues/163
     @Suppress("DEPRECATION")
     public fun flingBehavior(
         state: PagerState,
@@ -169,7 +171,7 @@ public object PagerDefaults {
 accompanist/pager is deprecated.
 The androidx.compose equivalent of Pager is androidx.compose.foundation.pager.Pager
 For more migration information, please visit https://google.github.io/accompanist/pager/#migration
-"""
+""",
     )
     @Composable
     @ExperimentalSnapperApi
@@ -208,8 +210,8 @@ For more migration information, please visit https://google.github.io/accompanis
 """,
         replaceWith = ReplaceWith(
             "androidx.compose.foundation.pager.PagerDefaults.flingBehavior(state = state)",
-            "androidx.compose.foundation.pager.PagerDefaults"
-        )
+            "androidx.compose.foundation.pager.PagerDefaults",
+        ),
     )
     @Composable
     @ExperimentalSnapperApi
@@ -264,8 +266,8 @@ For more migration information, please visit https://google.github.io/accompanis
 """,
     replaceWith = ReplaceWith(
         "HorizontalPager",
-        "androidx.compose.foundation.pager.HorizontalPager"
-    )
+        "androidx.compose.foundation.pager.HorizontalPager",
+    ),
 )
 public fun HorizontalPager(
     count: Int,
@@ -295,7 +297,7 @@ public fun HorizontalPager(
         key = key,
         contentPadding = contentPadding,
         userScrollEnabled = userScrollEnabled,
-        content = content
+        content = content,
     )
 }
 
@@ -327,7 +329,7 @@ public fun HorizontalPager(
 accompanist/pager is deprecated.
 The androidx.compose equivalent of VerticalPager is androidx.compose.foundation.pager.VerticalPager.
 For more migration information, please visit https://google.github.io/accompanist/pager/#migration
-"""
+""",
 )
 public fun VerticalPager(
     count: Int,
@@ -357,14 +359,13 @@ public fun VerticalPager(
         key = key,
         contentPadding = contentPadding,
         userScrollEnabled = userScrollEnabled,
-        content = content
+        content = content,
     )
 }
 
 @Composable
 internal fun Pager(
     count: Int,
-    modifier: Modifier,
     state: PagerState,
     reverseLayout: Boolean,
     itemSpacing: Dp,
@@ -373,6 +374,7 @@ internal fun Pager(
     key: ((page: Int) -> Any)?,
     contentPadding: PaddingValues,
     userScrollEnabled: Boolean,
+    modifier: Modifier = Modifier,
     verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
     horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
     content: @Composable PagerScope.(page: Int) -> Unit,
@@ -386,7 +388,7 @@ internal fun Pager(
         (flingBehavior as? SnapperFlingBehavior)?.animationTarget
     }
 
-    LaunchedEffect(count) {
+    SideEffect(count) {
         state.currentPage = minOf(count - 1, state.currentPage).coerceAtLeast(0)
     }
 
@@ -406,7 +408,7 @@ internal fun Pager(
             .collect { state.updateCurrentPageBasedOnLazyListState() }
     }
     val density = LocalDensity.current
-    LaunchedEffect(density, state, itemSpacing) {
+    SideEffect(density, state, itemSpacing) {
         with(density) { state.itemSpacing = itemSpacing.roundToPx() }
     }
 
@@ -420,6 +422,20 @@ internal fun Pager(
             consumeVertical = isVertical,
             pagerState = state,
         )
+    }
+
+    val pageContent: @Composable LazyItemScope.(Int) -> Unit = { page ->
+        val pageSize = if (isVertical) Modifier.fillParentMaxHeight() else Modifier.fillParentMaxWidth()
+        Box(
+            modifier = Modifier
+                // 入れ子の fling を Pager の移動へ伝播させない。
+                // https://github.com/google/accompanist/issues/347
+                .nestedScroll(consumeFlingNestedScrollConnection)
+                .then(pageSize)
+                .wrapContentSize(),
+        ) {
+            pagerScope.content(page)
+        }
     }
 
     if (isVertical) {
@@ -436,20 +452,8 @@ internal fun Pager(
             items(
                 count = count,
                 key = key,
-            ) { page ->
-                Box(
-                    Modifier
-                        // We don't any nested flings to continue in the pager, so we add a
-                        // connection which consumes them.
-                        // See: https://github.com/google/accompanist/issues/347
-                        .nestedScroll(connection = consumeFlingNestedScrollConnection)
-                        // Constraint the content height to be <= than the height of the pager.
-                        .fillParentMaxHeight()
-                        .wrapContentSize()
-                ) {
-                    pagerScope.content(page)
-                }
-            }
+                itemContent = pageContent,
+            )
         }
     } else {
         LazyRow(
@@ -465,20 +469,8 @@ internal fun Pager(
             items(
                 count = count,
                 key = key,
-            ) { page ->
-                Box(
-                    Modifier
-                        // We don't any nested flings to continue in the pager, so we add a
-                        // connection which consumes them.
-                        // See: https://github.com/google/accompanist/issues/347
-                        .nestedScroll(connection = consumeFlingNestedScrollConnection)
-                        // Constraint the content width to be <= than the width of the pager.
-                        .fillParentMaxWidth()
-                        .wrapContentSize()
-                ) {
-                    pagerScope.content(page)
-                }
-            }
+                itemContent = pageContent,
+            )
         }
     }
 }
@@ -491,39 +483,32 @@ private class ConsumeFlingNestedScrollConnection(
     override fun onPostScroll(
         consumed: Offset,
         available: Offset,
-        source: NestedScrollSource
+        source: NestedScrollSource,
     ): Offset = when (source) {
         // We can consume all resting fling scrolls so that they don't propagate up to the
         // Pager
         NestedScrollSource.Fling -> available.consume(consumeHorizontal, consumeVertical)
+
         else -> Offset.Zero
     }
 
-    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-        return if (pagerState.currentPageOffset != 0f) {
-            // The Pager is already scrolling. This means that a nested scroll child was
-            // scrolled to end, and the Pager can use this fling
-            Velocity.Zero
-        } else {
-            // A nested scroll child is still scrolling. We can consume all post fling
-            // velocity on the main-axis so that it doesn't propagate up to the Pager
-            available.consume(consumeHorizontal, consumeVertical)
-        }
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = if (pagerState.currentPageOffset != 0f) {
+        // The Pager is already scrolling. This means that a nested scroll child was
+        // scrolled to end, and the Pager can use this fling
+        Velocity.Zero
+    } else {
+        // A nested scroll child is still scrolling. We can consume all post fling
+        // velocity on the main-axis so that it doesn't propagate up to the Pager
+        available.consume(consumeHorizontal, consumeVertical)
     }
 }
 
-private fun Offset.consume(
-    consumeHorizontal: Boolean,
-    consumeVertical: Boolean,
-): Offset = Offset(
+private fun Offset.consume(consumeHorizontal: Boolean, consumeVertical: Boolean): Offset = Offset(
     x = if (consumeHorizontal) this.x else 0f,
     y = if (consumeVertical) this.y else 0f,
 )
 
-private fun Velocity.consume(
-    consumeHorizontal: Boolean,
-    consumeVertical: Boolean,
-): Velocity = Velocity(
+private fun Velocity.consume(consumeHorizontal: Boolean, consumeVertical: Boolean): Velocity = Velocity(
     x = if (consumeHorizontal) this.x else 0f,
     y = if (consumeVertical) this.y else 0f,
 )
@@ -536,7 +521,7 @@ private fun Velocity.consume(
 accompanist/pager is deprecated.
 The androidx.compose equivalent of Pager is androidx.compose.foundation.pager.Pager.
 For more migration information, please visit https://google.github.io/accompanist/pager/#migration
-"""
+""",
 )
 @Stable
 public interface PagerScope {
@@ -551,9 +536,7 @@ public interface PagerScope {
     public val currentPageOffset: Float
 }
 
-private class PagerScopeImpl(
-    private val state: PagerState,
-) : PagerScope {
+private class PagerScopeImpl(private val state: PagerState) : PagerScope {
     override val currentPage: Int get() = state.currentPage
     override val currentPageOffset: Float get() = state.currentPageOffset
 }
@@ -572,8 +555,6 @@ private class PagerScopeImpl(
 accompanist/pager is deprecated.
 The androidx.compose equivalent of Pager is androidx.compose.foundation.pager.Pager.
 For more migration information, please visit https://google.github.io/accompanist/pager/#migration
-"""
+""",
 )
-public fun PagerScope.calculateCurrentOffsetForPage(page: Int): Float {
-    return (currentPage - page) + currentPageOffset
-}
+public fun PagerScope.calculateCurrentOffsetForPage(page: Int): Float = (currentPage - page) + currentPageOffset

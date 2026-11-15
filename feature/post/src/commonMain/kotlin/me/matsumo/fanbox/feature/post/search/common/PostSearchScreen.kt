@@ -1,0 +1,224 @@
+package me.matsumo.fanbox.feature.post.search.common
+
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.cash.paging.compose.LazyPagingItems
+import app.cash.paging.compose.collectAsLazyPagingItems
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.toImmutableList
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.model.fanbox.Tag
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
+import me.matsumo.fanbox.feature.post.search.common.items.PostSearchCreatorScreen
+import me.matsumo.fanbox.feature.post.search.common.items.PostSearchTagScreen
+import me.matsumo.fanbox.feature.post.search.common.items.PostSearchTopBar
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+
+@Composable
+internal fun PostSearchRoute(
+    query: String,
+    navigateTo: (Destination) -> Unit,
+    terminate: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: PostSearchViewModel = koinViewModel(),
+    navigatorExtension: NavigatorExtension = koinInject(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val followStates by viewModel.followStates.collectAsStateWithLifecycle()
+    val creatorPaging = uiState.creatorPaging.collectAsLazyPagingItems()
+    val tagPaging = uiState.tagPaging.collectAsLazyPagingItems()
+
+    SideEffect(true) {
+        if (query.isNotBlank() && uiState.query.isBlank()) {
+            viewModel.search(parseQuery(query))
+        }
+    }
+
+    PostSearchScreen(
+        modifier = modifier,
+        query = uiState.query,
+        initialQuery = query,
+        setting = uiState.setting,
+        bookmarkedPosts = uiState.bookmarkedPosts.toImmutableList(),
+        suggestTags = uiState.suggestTags.toImmutableList(),
+        creatorPaging = creatorPaging,
+        followStates = followStates,
+        tagPaging = tagPaging,
+        onTerminate = terminate,
+        onClickPost = { navigateTo(Destination.PostDetail(it, Destination.PostDetail.PagingType.Search)) },
+        onClickPostLike = viewModel::postLike,
+        onClickPostBookmark = viewModel::postBookmark,
+        onClickCreatorPosts = { navigateTo(Destination.CreatorTop(it, true)) },
+        onClickCreatorPlans = { navigateTo(Destination.CreatorTop(it, false)) },
+        onClickFollow = viewModel::follow,
+        onClickUnfollow = viewModel::unfollow,
+        onClickSupporting = { navigatorExtension.navigateToWebPage(it, "") },
+        onSearch = {
+            if (uiState.query.isNotBlank()) {
+                navigateTo(Destination.PostSearch(it.creatorId ?: CreatorId(""), it.creatorQuery, it.tag))
+            } else {
+                viewModel.search(it)
+            }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PostSearchScreen(
+    query: String,
+    initialQuery: String,
+    setting: Setting,
+    bookmarkedPosts: ImmutableList<PostId>,
+    suggestTags: ImmutableList<Tag>,
+    creatorPaging: LazyPagingItems<CreatorDetail>,
+    followStates: ImmutableMap<UserId, Boolean>,
+    tagPaging: LazyPagingItems<Post>,
+    onSearch: (PostSearchQuery) -> Unit,
+    onTerminate: () -> Unit,
+    onClickPost: (PostId) -> Unit,
+    onClickPostLike: (PostId) -> Unit,
+    onClickPostBookmark: (Post, Boolean) -> Unit,
+    onClickCreatorPosts: (CreatorId) -> Unit,
+    onClickCreatorPlans: (CreatorId) -> Unit,
+    onClickFollow: (UserId) -> Unit,
+    onClickUnfollow: (UserId) -> Unit,
+    onClickSupporting: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    Scaffold(
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            PostSearchTopBar(
+                query = query,
+                initialQuery = initialQuery,
+                onClickTerminate = onTerminate,
+                onClickSearch = onSearch,
+                scrollBehavior = scrollBehavior,
+            )
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    ) { padding ->
+        when (parseQuery(query).mode) {
+            PostSearchMode.Creator -> {
+                PostSearchCreatorScreen(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                    pagingAdapter = creatorPaging,
+                    followStates = followStates,
+                    suggestTags = suggestTags,
+                    onClickCreator = onClickCreatorPosts,
+                    onClickFollow = onClickFollow,
+                    onClickUnfollow = onClickUnfollow,
+                    onClickTag = { onSearch.invoke(parseQuery(it)) },
+                    onClickSupporting = onClickSupporting,
+                )
+            }
+
+            PostSearchMode.Tag -> {
+                PostSearchTagScreen(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                    pagingAdapter = tagPaging,
+                    setting = setting,
+                    bookmarkedPosts = bookmarkedPosts,
+                    onClickPost = onClickPost,
+                    onClickPostLike = onClickPostLike,
+                    onClickPostBookmark = onClickPostBookmark,
+                    onClickCreator = onClickCreatorPosts,
+                    onClickPlanList = onClickCreatorPlans,
+                )
+            }
+
+            else -> {
+                // do nothing
+            }
+        }
+    }
+}
+
+internal fun buildQuery(
+    creatorId: CreatorId,
+    creatorQuery: String?,
+    tag: String?,
+): String {
+    val queryList = mutableListOf<String>()
+
+    if (creatorQuery != null) {
+        queryList += creatorQuery
+    }
+
+    if (tag != null) {
+        queryList += "#$tag"
+    }
+
+    if (creatorId.value.isNotBlank()) {
+        queryList += "from:@${creatorId.value}"
+    }
+
+    return queryList.joinToString(" ")
+}
+
+internal fun buildQuery(query: PostSearchQuery): String = buildQuery(
+    creatorId = query.creatorId ?: CreatorId(""),
+    creatorQuery = query.creatorQuery,
+    tag = query.tag,
+)
+
+internal fun parseQuery(query: String): PostSearchQuery {
+    val queryList = query.split(" ").filter { it.isNotBlank() }
+
+    var mode = PostSearchMode.Unknown
+    var creatorId: CreatorId? = null
+    var creatorQuery: String? = null
+    var tag: String? = null
+
+    queryList.forEach {
+        when {
+            it.startsWith("from:@") -> {
+                mode = PostSearchMode.Tag
+                creatorId = CreatorId(it.removePrefix("from:@"))
+            }
+
+            it.startsWith("#") -> {
+                mode = PostSearchMode.Tag
+                tag = it.removePrefix("#")
+            }
+
+            else -> {
+                mode = PostSearchMode.Creator
+                creatorQuery = it
+            }
+        }
+    }
+
+    return PostSearchQuery(
+        mode = mode,
+        creatorId = creatorId,
+        creatorQuery = creatorQuery,
+        postQuery = null,
+        tag = tag,
+    )
+}

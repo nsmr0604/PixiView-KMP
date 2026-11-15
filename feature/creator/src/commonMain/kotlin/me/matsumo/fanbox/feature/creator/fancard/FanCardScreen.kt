@@ -16,37 +16,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
-import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorPlanDetail
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.fanbox.CreatorPlanDetail
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.common_downloaded
+import me.matsumo.fanbox.core.resources.error_network
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
-import me.matsumo.fanbox.core.ui.Res
 import me.matsumo.fanbox.core.ui.animation.Zoomable
-import me.matsumo.fanbox.core.ui.common_downloaded
 import me.matsumo.fanbox.core.ui.component.PixiViewTopBar
-import me.matsumo.fanbox.core.ui.error_network
 import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
 import me.matsumo.fanbox.core.ui.extensition.ToastExtension
 import me.matsumo.fanbox.feature.creator.fancard.items.FanCardItem
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 internal fun FanCardRoute(
-    creatorId: CreatorId,
+    destination: Destination.FanCard,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: FanCardViewModel = koinViewModel(),
+    viewModel: FanCardViewModel = koinViewModel { parametersOf(destination) },
     toastExtension: ToastExtension = koinInject(),
 ) {
     val screenState by viewModel.screenState.collectAsStateWithLifecycle()
     val snackHostState = LocalSnackbarHostState.current
-
-    LaunchedEffect(creatorId) {
-        if (screenState !is ScreenState.Idle) {
-            viewModel.fetch(creatorId)
-        }
-    }
 
     LaunchedEffect(true) {
         viewModel.downloadedEvent.collectLatest {
@@ -57,7 +51,8 @@ internal fun FanCardRoute(
     AsyncLoadContents(
         modifier = modifier,
         screenState = screenState,
-        retryAction = { terminate.invoke() },
+        retryAction = viewModel::fetch,
+        terminate = terminate,
     ) {
         FanCardScreen(
             modifier = Modifier.fillMaxWidth(),
@@ -70,11 +65,11 @@ internal fun FanCardRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FanCardScreen(
-    planDetail: FanboxCreatorPlanDetail,
+    planDetail: CreatorPlanDetail,
     onTerminate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var isDisplayName by remember { mutableStateOf(true) }
+    val isDisplayName by remember { mutableStateOf(true) }
 
     Box(modifier) {
         Zoomable(

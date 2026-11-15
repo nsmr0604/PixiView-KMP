@@ -2,22 +2,11 @@ package me.matsumo.fanbox.feature.setting.oss
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import me.matsumo.fanbox.core.ui.animation.NavigateAnimation
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import me.matsumo.fanbox.core.ui.extensition.navigateWithLog
+import androidx.navigation3.runtime.EntryProviderScope
+import me.matsumo.fanbox.core.model.Destination
 
-const val SettingLicenseRoute = "SettingLicense"
-
-fun NavController.navigateToSettingLicense() {
-    this.navigateWithLog(SettingLicenseRoute)
-}
-
-fun NavGraphBuilder.settingLicenseScreen(
-    terminate: () -> Unit,
-) {
-    composable(SettingLicenseRoute) {
+fun EntryProviderScope<Destination>.settingLicenseEntry(terminate: () -> Unit) {
+    entry<Destination.SettingLicense> {
         SettingLicenseScreen(
             modifier = Modifier.fillMaxSize(),
             terminate = terminate,

@@ -9,17 +9,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import me.matsumo.fanbox.core.common.util.suspendRunCatching
+import me.matsumo.fanbox.core.model.Destination
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorPlanDetail
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.CreatorPlanDetail
+import me.matsumo.fanbox.core.model.toScreenStateError
 import me.matsumo.fanbox.core.repository.FanboxRepository
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.common_back
-import me.matsumo.fanbox.core.ui.creator_fan_card_not_supported
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.common_back
+import me.matsumo.fanbox.core.resources.creator_fan_card_not_supported
 
-class FanCardViewModel(
-    private val fanboxRepository: FanboxRepository,
-) : ViewModel() {
+class FanCardViewModel(destination: Destination.FanCard, private val fanboxRepository: FanboxRepository) : ViewModel() {
+
+    private val creatorId = destination.creatorId
 
     private val _screenState = MutableStateFlow<ScreenState<FanCardUiState>>(ScreenState.Loading)
     private val _downloadedEvent = Channel<Boolean>()
@@ -27,7 +28,11 @@ class FanCardViewModel(
     val screenState = _screenState.asStateFlow()
     val downloadedEvent = _downloadedEvent.receiveAsFlow()
 
-    fun fetch(creatorId: CreatorId) {
+    init {
+        fetch()
+    }
+
+    fun fetch() {
         viewModelScope.launch {
             _screenState.value = ScreenState.Loading
             _screenState.value = suspendRunCatching {
@@ -37,9 +42,9 @@ class FanCardViewModel(
             }.fold(
                 onSuccess = { ScreenState.Idle(it) },
                 onFailure = {
-                    ScreenState.Error(
-                        message = Res.string.creator_fan_card_not_supported,
-                        retryTitle = Res.string.common_back,
+                    it.toScreenStateError(
+                        fallbackMessage = Res.string.creator_fan_card_not_supported,
+                        fallbackRetryTitle = Res.string.common_back,
                     )
                 },
             )
@@ -48,6 +53,4 @@ class FanCardViewModel(
 }
 
 @Stable
-data class FanCardUiState(
-    val planDetail: FanboxCreatorPlanDetail,
-)
+data class FanCardUiState(val planDetail: CreatorPlanDetail)

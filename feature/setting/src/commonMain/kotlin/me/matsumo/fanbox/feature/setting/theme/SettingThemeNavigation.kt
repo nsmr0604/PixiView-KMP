@@ -2,25 +2,14 @@ package me.matsumo.fanbox.feature.setting.theme
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import me.matsumo.fanbox.core.ui.extensition.navigateWithLog
+import androidx.navigation3.runtime.EntryProviderScope
+import me.matsumo.fanbox.core.model.Destination
 
-const val SettingThemeDialogRoute = "SettingTheme"
-
-fun NavController.navigateToSettingTheme() {
-    this.navigateWithLog(SettingThemeDialogRoute)
-}
-
-fun NavGraphBuilder.settingThemeScreen(
-    navigateToBillingPlus: (String?) -> Unit,
-    terminate: () -> Unit,
-) {
-    composable(SettingThemeDialogRoute) {
+fun EntryProviderScope<Destination>.settingThemeEntry(navigateTo: (Destination) -> Unit, terminate: () -> Unit) {
+    entry<Destination.SettingTheme> {
         SettingThemeRoute(
             modifier = Modifier.fillMaxSize(),
-            navigateToBillingPlus = navigateToBillingPlus,
+            navigateTo = navigateTo,
             terminate = terminate,
         )
     }

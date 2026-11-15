@@ -2,34 +2,20 @@ package me.matsumo.fanbox.feature.setting.top
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import me.matsumo.fanbox.core.ui.extensition.navigateWithLog
-import me.matsumo.fanbox.core.ui.view.SimpleAlertContents
+import androidx.navigation3.runtime.EntryProviderScope
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.SimpleAlertContents
 
-const val SettingTopRoute = "settingTop"
-
-fun NavController.navigateToSettingTop() {
-    this.navigateWithLog(SettingTopRoute)
-}
-
-fun NavGraphBuilder.settingTopScreen(
-    navigateToThemeSetting: () -> Unit,
-    navigateToBillingPlus: (String?) -> Unit,
-    navigateToLogoutDialog: (SimpleAlertContents, () -> Unit) -> Unit,
-    navigateToOpenSourceLicense: () -> Unit,
-    navigateToSettingDeveloper: () -> Unit,
+fun EntryProviderScope<Destination>.settingTopEntry(
+    navigateTo: (Destination) -> Unit,
+    navigateToSimpleAlertDialog: (SimpleAlertContents, () -> Unit) -> Unit,
     terminate: () -> Unit,
 ) {
-    composable(SettingTopRoute) {
+    entry<Destination.SettingTop> {
         SettingTopRoute(
             modifier = Modifier.fillMaxSize(),
-            navigateToThemeSetting = navigateToThemeSetting,
-            navigateToBillingPlus = navigateToBillingPlus,
-            navigateToOpenSourceLicense = navigateToOpenSourceLicense,
-            navigateToLogoutDialog = navigateToLogoutDialog,
-            navigateToSettingDeveloper = navigateToSettingDeveloper,
+            navigateTo = navigateTo,
+            navigateToSimpleAlertDialog = navigateToSimpleAlertDialog,
             terminate = terminate,
         )
     }

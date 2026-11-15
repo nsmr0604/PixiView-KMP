@@ -6,18 +6,16 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
 import me.matsumo.fanbox.core.common.util.format
 import me.matsumo.fanbox.core.common.util.suspendRunCatching
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.fanbox.FanboxPaidRecord
+import me.matsumo.fanbox.core.model.fanbox.PaidRecord
+import me.matsumo.fanbox.core.model.toScreenStateError
 import me.matsumo.fanbox.core.repository.FanboxRepository
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.error_network
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
-class PaymentsViewModel(
-    private val fanboxRepository: FanboxRepository,
-) : ViewModel() {
+class PaymentsViewModel(private val fanboxRepository: FanboxRepository) : ViewModel() {
 
     private val _screenState = MutableStateFlow<ScreenState<PaymentsUiState>>(ScreenState.Loading)
 
@@ -36,13 +34,14 @@ class PaymentsViewModel(
                 )
             }.fold(
                 onSuccess = { ScreenState.Idle(it) },
-                onFailure = { ScreenState.Error(Res.string.error_network) },
+                onFailure = { it.toScreenStateError() },
             )
         }
     }
 
-    private fun List<FanboxPaidRecord>.translate(): List<Payment> {
-        val paymentDates = map { it.paymentDateTime }.distinctBy { it.epochSeconds }
+    @OptIn(ExperimentalTime::class)
+    private fun List<PaidRecord>.translate(): List<Payment> {
+        val paymentDates = map { it.paymentDateTime }.distinctBy { it.format("yyyy-MM-dd") }
 
         return paymentDates.map { paymentDate ->
             Payment(
@@ -54,12 +53,8 @@ class PaymentsViewModel(
 }
 
 @Stable
-data class PaymentsUiState(
-    val payments: List<Payment>,
-)
+data class PaymentsUiState(val payments: List<Payment>)
 
+@OptIn(ExperimentalTime::class)
 @Stable
-data class Payment(
-    val paymentDateTime: Instant,
-    val paidRecords: List<FanboxPaidRecord>,
-)
+data class Payment(val paymentDateTime: Instant, val paidRecords: List<PaidRecord>)

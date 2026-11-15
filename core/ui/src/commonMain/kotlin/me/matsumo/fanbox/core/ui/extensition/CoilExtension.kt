@@ -1,9 +1,8 @@
-@file:Suppress("MatchingDeclarationName")
-
 package me.matsumo.fanbox.core.ui.extensition
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -12,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import coil3.Image
-import coil3.annotation.ExperimentalCoilApi
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
@@ -20,40 +18,45 @@ import com.eygraber.compose.placeholder.PlaceholderHighlight
 import com.eygraber.compose.placeholder.material3.fade
 import com.eygraber.compose.placeholder.material3.shimmer
 import com.eygraber.compose.placeholder.placeholder
-import io.github.alexzhirkevich.cupertino.adaptive.AdaptiveCircularProgressIndicator
-import io.github.alexzhirkevich.cupertino.adaptive.ExperimentalAdaptiveApi
-import me.matsumo.fanbox.core.model.fanbox.FanboxMetaData
+import io.github.aakira.napier.Napier
+import me.matsumo.fanbox.core.model.fanbox.MetaData
 import org.jetbrains.compose.resources.DrawableResource
 
 @Immutable
-data class FanboxCookie(
-    val cookie: String = "",
+data class FanboxSessionId(
+    val value: String = "",
 )
 
-val LocalFanboxCookie = staticCompositionLocalOf { FanboxCookie() }
+val LocalFanboxSessionId = staticCompositionLocalOf { FanboxSessionId() }
 
-val LocalFanboxMetadata = staticCompositionLocalOf { FanboxMetaData.dummy() }
+val LocalFanboxMetadata = staticCompositionLocalOf { getFanboxMetadataDummy() }
 
 @Composable
 expect fun DrawableResource.asCoilImage(): Image
 
-@OptIn(ExperimentalCoilApi::class)
 @Composable
 fun ImageRequest.Builder.fanboxHeader(): ImageRequest.Builder {
-    val cookie = LocalFanboxCookie.current.cookie
+    val sessionId = LocalFanboxSessionId.current.value
 
     httpHeaders(
         NetworkHeaders.Builder()
             .apply {
                 set("origin", "https://www.fanbox.cc")
                 set("referer", "https://www.fanbox.cc")
-                set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36")
+                set(
+                    "user-agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
+                )
 
-                if (cookie.isNotBlank()) {
-                    set("Cookie", cookie)
+                if (sessionId.isNotBlank()) {
+                    set("Cookie", "FANBOXSESSID=$sessionId")
                 }
             }
-            .build()
+            .build(),
+    )
+
+    listener(
+        onError = { _, e -> Napier.e(e.throwable) { "ImageRequest error: $e" } },
     )
 
     return this
@@ -91,14 +94,41 @@ fun FadePlaceHolder(
     )
 }
 
-@OptIn(ExperimentalAdaptiveApi::class)
 @Composable
 fun IndicatorPlaceHolder(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.fillMaxSize()) {
-        AdaptiveCircularProgressIndicator(
+        CircularProgressIndicator(
             modifier = Modifier.align(Alignment.Center),
         )
     }
 }
+
+fun getFanboxMetadataDummy() = MetaData(
+    apiUrl = "https://duckduckgo.com/?q=sodales",
+    context = MetaData.Context(
+        privacyPolicy = MetaData.Context.PrivacyPolicy(
+            policyUrl = "https://search.yahoo.com/search?p=commodo",
+            revisionHistoryUrl = "https://search.yahoo.com/search?p=lorem",
+            shouldShowNotice = false,
+            updateDate = "vix",
+        ),
+        user = MetaData.Context.User(
+            creatorId = null,
+            fanboxUserStatus = 8439,
+            hasAdultContent = false,
+            hasUnpaidPayments = false,
+            iconUrl = null,
+            isCreator = false,
+            isMailAddressOutdated = false,
+            isSupporter = false,
+            lang = "quem",
+            name = "Eliseo Gilliam",
+            planCount = 3061,
+            showAdultContent = false,
+            userId = null,
+        ),
+    ),
+    csrfToken = "doctus",
+)

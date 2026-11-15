@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -19,14 +19,15 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,105 +42,86 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import me.matsumo.fanbox.core.model.fanbox.FanboxMetaData
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
-import me.matsumo.fanbox.core.model.fanbox.id.CommentId
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.common_delete
-import me.matsumo.fanbox.core.ui.common_see_more
+import me.matsumo.fanbox.core.model.TranslationState
+import me.matsumo.fanbox.core.model.fanbox.Comment
+import me.matsumo.fanbox.core.model.fanbox.CommentId
+import me.matsumo.fanbox.core.model.fanbox.MetaData
+import me.matsumo.fanbox.core.model.fanbox.PageOffsetInfo
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.common_delete
+import me.matsumo.fanbox.core.resources.common_see_more
+import me.matsumo.fanbox.core.resources.im_default_user
+import me.matsumo.fanbox.core.resources.post_detail_comment_empty
+import me.matsumo.fanbox.core.resources.post_detail_comment_reply
+import me.matsumo.fanbox.core.resources.post_detail_comment_title
+import me.matsumo.fanbox.core.resources.unit_day_before
+import me.matsumo.fanbox.core.resources.unit_hour_before
+import me.matsumo.fanbox.core.resources.unit_minute_before
+import me.matsumo.fanbox.core.resources.unit_second_before
 import me.matsumo.fanbox.core.ui.extensition.asCoilImage
 import me.matsumo.fanbox.core.ui.extensition.padding
-import me.matsumo.fanbox.core.ui.im_default_user
-import me.matsumo.fanbox.core.ui.post_detail_comment_empty
-import me.matsumo.fanbox.core.ui.post_detail_comment_reply
-import me.matsumo.fanbox.core.ui.post_detail_comment_title
 import me.matsumo.fanbox.core.ui.theme.bold
 import me.matsumo.fanbox.core.ui.theme.center
-import me.matsumo.fanbox.core.ui.unit_day_before
-import me.matsumo.fanbox.core.ui.unit_hour_before
-import me.matsumo.fanbox.core.ui.unit_minute_before
-import me.matsumo.fanbox.core.ui.unit_second_before
 import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
+// LazyListScope の項目宣言へ、記事の表示データと画面イベントをそのまま渡す。
+@Suppress("LongParameterList")
 internal fun LazyListScope.postDetailCommentItems(
     isShowCommentEditor: Boolean,
-    postDetail: FanboxPostDetail,
-    metaData: FanboxMetaData,
+    postDetail: PostDetail,
+    comments: PageOffsetInfo<Comment>,
+    commentsTransState: TranslationState<PageOffsetInfo<Comment>>,
+    metaData: MetaData,
     onClickLoadMore: (PostId, Int) -> Unit,
     onClickCommentLike: (CommentId) -> Unit,
     onClickCommentReply: (String, CommentId, CommentId) -> Unit,
     onClickCommentDelete: (CommentId) -> Unit,
     onClickShowCommentEditor: (Boolean) -> Unit,
+    onClickTranslate: (PageOffsetInfo<Comment>) -> Unit,
 ) {
     item {
-        Column(
+        PostDetailCommentHeader(
             modifier = Modifier
                 .padding(horizontal = 16.dp, top = 16.dp)
-                .fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    modifier = Modifier.weight(1f),
-                    text = stringResource(Res.string.post_detail_comment_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                IconButton(onClick = { onClickShowCommentEditor.invoke(!isShowCommentEditor) }) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        contentDescription = null,
-                    )
-                }
-            }
-
-            AnimatedVisibility(visible = isShowCommentEditor) {
-                CommentEditor(
-                    modifier = Modifier
-                        .animateContentSize()
-                        .padding(top = 24.dp)
-                        .padding(horizontal = 8.dp)
-                        .fillMaxWidth(),
-                    parentCommentId = CommentId("0"),
-                    rootCommentId = CommentId("0"),
-                    metaData = metaData,
-                    onClickCommentReply = { body, parentCommentId, rootCommentId ->
-                        onClickCommentReply.invoke(body, parentCommentId, rootCommentId)
-                    },
-                )
-            }
-        }
+                .fillMaxWidth(),
+            isShowCommentEditor = isShowCommentEditor,
+            comments = comments,
+            commentsTransState = commentsTransState,
+            metaData = metaData,
+            onClickShowCommentEditor = onClickShowCommentEditor,
+            onClickCommentReply = onClickCommentReply,
+            onClickTranslate = onClickTranslate,
+        )
     }
 
-    if (postDetail.commentList.contents.isNotEmpty()) {
-        items(
-            items = postDetail.commentList.contents,
-            key = { comment -> comment.id.uniqueValue },
-        ) {
+    if (comments.contents.isNotEmpty()) {
+        itemsIndexed(
+            items = comments.contents,
+            // fankt 0.1.0 で uniqueValue が削除された。ID だけでは同じコメントが二度現れたときに
+            // Key was already used になるため index を併用する。
+            key = { index, comment -> "${comment.id.value}-$index" },
+        ) { _, comment ->
             CommentItem(
                 modifier = Modifier
                     .padding(horizontal = 24.dp, top = 16.dp)
                     .fillMaxWidth(),
                 metaData = metaData,
-                comment = it,
+                comment = comment,
                 onClickCommentLike = onClickCommentLike,
-                onClickCommentReply = { body, parentCommentId, rootCommentId ->
-                    onClickCommentReply.invoke(body, parentCommentId, rootCommentId)
+                onClickCommentReply = { body, parentFanboxCommentId, rootFanboxCommentId ->
+                    onClickCommentReply.invoke(body, parentFanboxCommentId, rootFanboxCommentId)
                 },
                 onClickCommentDelete = onClickCommentDelete,
             )
         }
     } else {
         item {
-            Text(
+            PostDetailEmptyComment(
                 modifier = Modifier
                     .alpha(if (!isShowCommentEditor) 1f else 0f)
                     .padding(
@@ -148,53 +130,29 @@ internal fun LazyListScope.postDetailCommentItems(
                         end = 16.dp,
                     )
                     .fillMaxWidth(),
-                text = stringResource(Res.string.post_detail_comment_empty),
-                style = MaterialTheme.typography.bodyMedium.center(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 
-    if (postDetail.commentList.offset != null) {
+    comments.offset?.let { offset ->
         item {
-            Box(
+            PostDetailCommentLoadMore(
                 modifier = Modifier
                     .padding(horizontal = 16.dp, top = 16.dp)
-                    .fillMaxWidth()
-            ) {
-                Button(
-                    modifier = Modifier
-                        .padding(top = 24.dp)
-                        .align(Alignment.Center),
-                    onClick = { onClickLoadMore.invoke(postDetail.id, postDetail.commentList.offset!!) },
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            contentDescription = null,
-                        )
-
-                        Text(
-                            modifier = Modifier.padding(start = 8.dp),
-                            text = stringResource(Res.string.common_see_more),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    }
-                }
-            }
+                    .fillMaxWidth(),
+                postId = postDetail.id,
+                offset = offset,
+                onClickLoadMore = onClickLoadMore,
+            )
         }
     }
 }
 
-@OptIn(ExperimentalCoilApi::class)
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun CommentItem(
-    comment: FanboxPostDetail.Comment.CommentItem,
-    metaData: FanboxMetaData,
+    comment: Comment,
+    metaData: MetaData,
     onClickCommentLike: (CommentId) -> Unit,
     onClickCommentReply: (String, CommentId, CommentId) -> Unit,
     onClickCommentDelete: (CommentId) -> Unit,
@@ -214,7 +172,7 @@ private fun CommentItem(
                 .size(36.dp),
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .error(Res.drawable.im_default_user.asCoilImage())
-                .data(comment.user.iconUrl)
+                .data(comment.user?.iconUrl)
                 .build(),
             contentDescription = null,
         )
@@ -225,7 +183,7 @@ private fun CommentItem(
                 .fillMaxWidth(),
         ) {
             Text(
-                text = comment.user.name,
+                text = comment.user?.name.orEmpty(),
                 style = MaterialTheme.typography.bodyMedium.bold(),
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -343,8 +301,8 @@ private fun CommentItem(
                         .animateContentSize()
                         .padding(top = 8.dp)
                         .fillMaxWidth(),
-                    parentCommentId = comment.id,
-                    rootCommentId = comment.rootCommentId,
+                    parentFanboxCommentId = comment.id,
+                    rootFanboxCommentId = comment.rootCommentId,
                     metaData = metaData,
                     onClickCommentReply = onClickCommentReply,
                 )
@@ -356,18 +314,14 @@ private fun CommentItem(
 @OptIn(ExperimentalCoilApi::class)
 @Composable
 private fun CommentEditor(
-    parentCommentId: CommentId,
-    rootCommentId: CommentId,
-    metaData: FanboxMetaData,
+    parentFanboxCommentId: CommentId,
+    rootFanboxCommentId: CommentId,
+    metaData: MetaData,
     onClickCommentReply: (String, CommentId, CommentId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var isError by rememberSaveable { mutableStateOf(false) }
     var value by rememberSaveable { mutableStateOf("") }
-
-    LaunchedEffect(value) {
-        isError = value.length > 1000
-    }
+    val isError = value.length > 1000
 
     Row(
         modifier = modifier,
@@ -379,7 +333,7 @@ private fun CommentEditor(
                 .size(36.dp),
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .error(Res.drawable.im_default_user.asCoilImage())
-                .data(metaData.context.user.iconUrl)
+                .data(metaData.context?.user?.iconUrl)
                 .build(),
             contentDescription = null,
         )
@@ -402,7 +356,7 @@ private fun CommentEditor(
                 modifier = Modifier.align(Alignment.End),
                 enabled = !isError,
                 onClick = {
-                    onClickCommentReply.invoke(value, parentCommentId, if (rootCommentId.value != "0") rootCommentId else parentCommentId)
+                    onClickCommentReply.invoke(value, parentFanboxCommentId, if (rootFanboxCommentId.value != "0") rootFanboxCommentId else parentFanboxCommentId)
                 },
             ) {
                 Text(text = stringResource(Res.string.post_detail_comment_reply))
@@ -411,6 +365,7 @@ private fun CommentEditor(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun Instant.toRelativeTimeString(): String {
     val now = Clock.System.now()
@@ -422,4 +377,123 @@ private fun Instant.toRelativeTimeString(): String {
         duration.inWholeMinutes > 0 -> stringResource(Res.string.unit_minute_before, duration.inWholeMinutes)
         else -> stringResource(Res.string.unit_second_before, duration.inWholeSeconds)
     }
+}
+
+@Composable
+private fun PostDetailCommentHeader(
+    isShowCommentEditor: Boolean,
+    comments: PageOffsetInfo<Comment>,
+    commentsTransState: TranslationState<PageOffsetInfo<Comment>>,
+    metaData: MetaData,
+    onClickShowCommentEditor: (Boolean) -> Unit,
+    onClickCommentReply: (String, CommentId, CommentId) -> Unit,
+    onClickTranslate: (PageOffsetInfo<Comment>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                modifier = Modifier.weight(1f),
+                text = stringResource(Res.string.post_detail_comment_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            IconButton(
+                onClick = { onClickTranslate.invoke(comments) },
+            ) {
+                if (commentsTransState is TranslationState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(4.dp),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Translate,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        contentDescription = null,
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = { onClickShowCommentEditor.invoke(!isShowCommentEditor) },
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    contentDescription = null,
+                )
+            }
+        }
+
+        AnimatedVisibility(visible = isShowCommentEditor) {
+            CommentEditor(
+                modifier = Modifier
+                    .animateContentSize()
+                    .padding(top = 24.dp)
+                    .padding(horizontal = 8.dp)
+                    .fillMaxWidth(),
+                parentFanboxCommentId = CommentId("0"),
+                rootFanboxCommentId = CommentId("0"),
+                metaData = metaData,
+                onClickCommentReply = { body, parentFanboxCommentId, rootFanboxCommentId ->
+                    onClickCommentReply.invoke(body, parentFanboxCommentId, rootFanboxCommentId)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PostDetailCommentLoadMore(
+    postId: PostId,
+    offset: Int,
+    onClickLoadMore: (PostId, Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier,
+    ) {
+        Button(
+            modifier = Modifier
+                .padding(top = 24.dp)
+                .align(Alignment.Center),
+            onClick = { onClickLoadMore.invoke(postId, offset) },
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    contentDescription = null,
+                )
+
+                Text(
+                    modifier = Modifier.padding(start = 8.dp),
+                    text = stringResource(Res.string.common_see_more),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PostDetailEmptyComment(
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        modifier = modifier,
+        text = stringResource(Res.string.post_detail_comment_empty),
+        style = MaterialTheme.typography.bodyMedium.center(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }

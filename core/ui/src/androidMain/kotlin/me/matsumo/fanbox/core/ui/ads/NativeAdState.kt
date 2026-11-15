@@ -12,6 +12,7 @@ import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdOptions
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
 fun rememberNativeAdState(
     adUnit: String,
     adListener: AdListener? = null,
-    adOptions: NativeAdOptions? = null
+    adOptions: NativeAdOptions? = null,
 ): NativeAdState {
     val context = LocalContext.current
     val activity = (context as? FragmentActivity) ?: error("Activity not found")
@@ -38,6 +39,7 @@ fun rememberNativeAdState(
     }
 }
 
+// 通信権限は host の AndroidManifest.xml で宣言し、この SDK 呼び出しに適用する。
 @SuppressLint("MissingPermission")
 class NativeAdState(
     activity: Activity,
@@ -45,11 +47,12 @@ class NativeAdState(
     adListener: AdListener?,
     adOptions: NativeAdOptions?,
     scope: CoroutineScope,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     val nativeAd = MutableStateFlow<NativeAd?>(null)
 
     init {
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             AdLoader.Builder(activity, adUnit).apply {
                 if (adOptions != null) withNativeAdOptions(adOptions)
                 if (adListener != null) withAdListener(adListener)

@@ -4,30 +4,28 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.repository.UserDataRepository
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.repository.SettingRepository
+import kotlin.time.Duration.Companion.seconds
 
-class LibraryViewModel(
-    userDataRepository: UserDataRepository,
-) : ViewModel() {
+class LibraryViewModel(settingRepository: SettingRepository) : ViewModel() {
 
-    val screenState = userDataRepository.userData.map {
+    val screenState = settingRepository.setting.map {
         ScreenState.Idle(
             LibraryUiState(
-                userData = it,
+                setting = it,
             ),
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.WhileSubscribed(stopTimeout = 5.seconds),
         initialValue = ScreenState.Loading,
     )
 }
 
 @Stable
-data class LibraryUiState(
-    val userData: UserData,
-)
+data class LibraryUiState(val setting: Setting)

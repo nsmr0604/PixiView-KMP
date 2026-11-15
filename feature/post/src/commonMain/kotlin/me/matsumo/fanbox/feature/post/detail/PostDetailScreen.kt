@@ -1,34 +1,45 @@
 package me.matsumo.fanbox.feature.post.detail
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -39,32 +50,52 @@ import app.cash.paging.compose.collectAsLazyPagingItems
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
-import com.benasher44.uuid.uuid4
+import com.svenjacobs.reveal.Key
+import com.svenjacobs.reveal.Reveal
+import com.svenjacobs.reveal.RevealOverlayArrangement
+import com.svenjacobs.reveal.RevealOverlayScope
+import com.svenjacobs.reveal.RevealState
+import com.svenjacobs.reveal.rememberRevealState
+import com.svenjacobs.reveal.shapes.balloon.Arrow
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.matsumo.fanbox.core.common.util.format
 import me.matsumo.fanbox.core.logs.category.PostsLog
 import me.matsumo.fanbox.core.logs.logger.send
+import me.matsumo.fanbox.core.model.BillingReferrer
+import me.matsumo.fanbox.core.model.Destination
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxCreatorDetail
-import me.matsumo.fanbox.core.model.fanbox.FanboxMetaData
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
-import me.matsumo.fanbox.core.model.fanbox.id.CommentId
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import me.matsumo.fanbox.core.model.fanbox.id.PostId
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.SimpleAlertContents
+import me.matsumo.fanbox.core.model.TranslationState
+import me.matsumo.fanbox.core.model.fanbox.Comment
+import me.matsumo.fanbox.core.model.fanbox.CommentId
+import me.matsumo.fanbox.core.model.fanbox.Cover
+import me.matsumo.fanbox.core.model.fanbox.CreatorDetail
+import me.matsumo.fanbox.core.model.fanbox.CreatorId
+import me.matsumo.fanbox.core.model.fanbox.MetaData
+import me.matsumo.fanbox.core.model.fanbox.PageOffsetInfo
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostDetail.Body
+import me.matsumo.fanbox.core.model.fanbox.PostDetail.Body.Article.Block
+import me.matsumo.fanbox.core.model.fanbox.PostId
+import me.matsumo.fanbox.core.model.fanbox.UserId
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_network
+import me.matsumo.fanbox.core.resources.queue_added
+import me.matsumo.fanbox.core.resources.queue_added_action
+import me.matsumo.fanbox.core.resources.reveal_post_detail_translate
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
 import me.matsumo.fanbox.core.ui.LazyPagingItemsLoadContents
-import me.matsumo.fanbox.core.ui.Res
+import me.matsumo.fanbox.core.ui.ads.BannerAdView
 import me.matsumo.fanbox.core.ui.ads.NativeAdView
-import me.matsumo.fanbox.core.ui.common_downloaded
-import me.matsumo.fanbox.core.ui.component.pager.HorizontalPager
-import me.matsumo.fanbox.core.ui.component.pager.rememberPagerState
-import me.matsumo.fanbox.core.ui.error_network
+import me.matsumo.fanbox.core.ui.appName
 import me.matsumo.fanbox.core.ui.extensition.FadePlaceHolder
-import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
 import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
+import me.matsumo.fanbox.core.ui.extensition.OverlayText
 import me.matsumo.fanbox.core.ui.extensition.Platform
 import me.matsumo.fanbox.core.ui.extensition.ToastExtension
 import me.matsumo.fanbox.core.ui.extensition.currentPlatform
@@ -72,10 +103,11 @@ import me.matsumo.fanbox.core.ui.extensition.fanboxHeader
 import me.matsumo.fanbox.core.ui.extensition.isNullOrEmpty
 import me.matsumo.fanbox.core.ui.extensition.marquee
 import me.matsumo.fanbox.core.ui.extensition.padding
+import me.matsumo.fanbox.core.ui.extensition.revealByStep
 import me.matsumo.fanbox.core.ui.theme.bold
 import me.matsumo.fanbox.core.ui.theme.center
 import me.matsumo.fanbox.core.ui.view.ErrorView
-import me.matsumo.fanbox.core.ui.view.SimpleAlertContents
+import me.matsumo.fanbox.feature.post.detail.items.PostDetailBottomBar
 import me.matsumo.fanbox.feature.post.detail.items.PostDetailCommentLikeButton
 import me.matsumo.fanbox.feature.post.detail.items.PostDetailCreatorSection
 import me.matsumo.fanbox.feature.post.detail.items.PostDetailMenuDialog
@@ -84,121 +116,179 @@ import me.matsumo.fanbox.feature.post.detail.items.postDetailCardSection
 import me.matsumo.fanbox.feature.post.detail.items.postDetailCommentItems
 import me.matsumo.fanbox.feature.post.detail.items.postDetailItems
 import me.matsumo.fanbox.feature.post.detail.items.postDetailTagsSection
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
 
-@OptIn(ExperimentalFoundationApi::class)
+internal enum class PostDetailRevealKeys {
+    Translate,
+}
+
+@OptIn(ExperimentalUuidApi::class, ExperimentalComposeUiApi::class, ExperimentalTime::class)
 @Composable
 internal fun PostDetailRoute(
-    postId: PostId,
-    type: PostDetailPagingType,
-    navigateToPostSearch: (String, CreatorId) -> Unit,
-    navigateToPostDetail: (PostId) -> Unit,
-    navigateToPostImage: (PostId, Int) -> Unit,
-    navigateToCreatorPlans: (CreatorId) -> Unit,
-    navigateToCreatorPosts: (CreatorId) -> Unit,
+    destination: Destination.PostDetail,
+    navigateTo: (Destination) -> Unit,
     navigateToCommentDeleteDialog: (SimpleAlertContents, () -> Unit) -> Unit,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PostDetailRootViewModel = koinViewModel(),
+    viewModel: PostDetailRootViewModel = koinViewModel { parametersOf(destination) },
 ) {
+    val postId = destination.postId
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val paging = uiState.paging?.collectAsLazyPagingItems()
 
-    LaunchedEffect(true) {
-        if (paging == null) {
-            viewModel.fetch(type)
-        }
-    }
+    val postDetailMap = remember { mutableStateMapOf<PostId, PostDetail>() }
+    var currentPostId by remember { mutableStateOf(postId) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    if (paging != null && !paging.isNullOrEmpty() && uiState.userData.isUseInfinityPostDetail) {
-        LazyPagingItemsLoadContents(
-            modifier = modifier,
-            lazyPagingItems = paging,
-            isSwipeEnabled = false,
-        ) {
-            val initIndex = remember { paging.itemSnapshotList.indexOfFirst { it?.id == postId } }
-            val pagerState = rememberPagerState(if (initIndex != -1) initIndex else 0)
+    val revealState = rememberRevealState()
+    val revealOverlayContainerColor = MaterialTheme.colorScheme.tertiaryContainer
+    val revealOverlayContentColor = MaterialTheme.colorScheme.onTertiaryContainer
 
-            HorizontalPager(
-                modifier = Modifier.fillMaxSize(),
-                state = pagerState,
-                count = paging.itemCount,
-                key = { paging[it]?.id?.uniqueValue ?: uuid4().toString() },
-            ) {
-                paging[it]?.let { post ->
-                    PostDetailView(
-                        modifier = Modifier.fillMaxSize(),
-                        postId = post.id,
-                        navigateToPostSearch = navigateToPostSearch,
-                        navigateToPostDetail = navigateToPostDetail,
-                        navigateToPostImage = navigateToPostImage,
-                        navigateToCreatorPlans = navigateToCreatorPlans,
-                        navigateToCreatorPosts = navigateToCreatorPosts,
-                        navigateToCommentDeleteDialog = navigateToCommentDeleteDialog,
-                        terminate = terminate,
+    Reveal(
+        modifier = modifier,
+        onOverlayClick = { scope.launch { revealState.hide() } },
+        revealState = revealState,
+        overlayContent = { key -> RevealOverlayContent(key, revealOverlayContainerColor, revealOverlayContentColor) },
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            bottomBar = {
+                Column(
+                    modifier = Modifier
+                        .shadow(8.dp)
+                        .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
+                ) {
+                    if (!uiState.setting.hasPrivilege) {
+                        BannerAdView(
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    PostDetailBottomBar(
+                        modifier = Modifier.fillMaxWidth(),
+                        postDetail = postDetailMap[currentPostId],
+                        isBookmarked = uiState.bookmarkedPostIds.contains(currentPostId),
+                        onCreatorClick = { navigateTo(Destination.CreatorTop(it, true)) },
+                        onBookmarkClick = { isBookmarked ->
+                            postDetailMap[currentPostId]?.let { viewModel.postBookmark(it.adPost(), isBookmarked) }
+                        },
                     )
                 }
+            },
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                )
+            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        ) { padding ->
+            if (paging != null && !paging.isNullOrEmpty()) {
+                LazyPagingItemsLoadContents(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    lazyPagingItems = paging,
+                    isSwipeEnabled = false,
+                ) {
+                    val initIndex = remember { paging.itemSnapshotList.indexOfFirst { it == postId } }
+                    val pagerState = rememberPagerState(initialPage = initIndex) { paging.itemCount }
+
+                    LaunchedEffect(pagerState) {
+                        snapshotFlow { pagerState.currentPage }.collect { index ->
+                            paging[index]?.let { currentPostId = it }
+                        }
+                    }
+
+                    HorizontalPager(
+                        modifier = Modifier.fillMaxSize(),
+                        state = pagerState,
+                        // fankt 0.1.0 で uniqueValue が削除された。ID だけでは同じ投稿が二度現れた
+                        // ときに Key was already used になるため index を併用する。index はページャ
+                        // の位置そのものなので、ID が未取得のページも一意になる。
+                        key = { index -> "${paging[index]?.value.orEmpty()}-$index" },
+                        userScrollEnabled = uiState.setting.isUseInfinityPostDetail,
+                    ) { index ->
+                        paging[index]?.let { id ->
+                            PostDetailView(
+                                modifier = Modifier.fillMaxSize(),
+                                postId = id,
+                                shouldShowReveal = uiState.shouldShowReveal,
+                                revealState = revealState,
+                                snackbarHostState = snackbarHostState,
+                                navigateTo = navigateTo,
+                                navigateToCommentDeleteDialog = navigateToCommentDeleteDialog,
+                                onPostDetailFetch = { postDetailMap[id] = it },
+                                onRevealComplete = viewModel::finishReveal,
+                                terminate = terminate,
+                            )
+                        }
+                    }
+                }
+            } else {
+                ErrorView(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                    errorState = ScreenState.Error(Res.string.error_network),
+                    retryAction = terminate,
+                    terminate = terminate,
+                )
             }
         }
-    } else if (paging != null) {
-        PostDetailView(
-            modifier = Modifier.fillMaxSize(),
-            postId = postId,
-            navigateToPostSearch = navigateToPostSearch,
-            navigateToPostDetail = navigateToPostDetail,
-            navigateToPostImage = navigateToPostImage,
-            navigateToCreatorPlans = navigateToCreatorPlans,
-            navigateToCreatorPosts = navigateToCreatorPosts,
-            navigateToCommentDeleteDialog = navigateToCommentDeleteDialog,
-            terminate = terminate,
-        )
-    } else {
-        ErrorView(
-            modifier = Modifier.fillMaxSize(),
-            errorState = ScreenState.Error(Res.string.error_network),
-            retryAction = { terminate.invoke() },
-        )
     }
 }
 
 @Composable
 private fun PostDetailView(
     postId: PostId,
-    navigateToPostSearch: (String, CreatorId) -> Unit,
-    navigateToPostDetail: (PostId) -> Unit,
-    navigateToPostImage: (PostId, Int) -> Unit,
-    navigateToCreatorPlans: (CreatorId) -> Unit,
-    navigateToCreatorPosts: (CreatorId) -> Unit,
+    shouldShowReveal: Boolean,
+    revealState: RevealState,
+    snackbarHostState: SnackbarHostState,
+    navigateTo: (Destination) -> Unit,
     navigateToCommentDeleteDialog: (SimpleAlertContents, () -> Unit) -> Unit,
+    onPostDetailFetch: (PostDetail) -> Unit,
+    onRevealComplete: () -> Unit,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PostDetailViewModel = koinViewModel(key = postId.value),
+    viewModel: PostDetailViewModel = koinViewModel(key = postId.value) {
+        parametersOf(postId)
+    },
     navigatorExtension: NavigatorExtension = koinInject(),
     snackExtension: ToastExtension = koinInject(),
 ) {
     val screenState by viewModel.screenState.collectAsStateWithLifecycle()
-    val snackbarHostState = LocalSnackbarHostState.current
+    val followStates by viewModel.followStates.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(postId) {
-        if (screenState !is ScreenState.Idle) {
-            viewModel.fetch(postId)
-        }
-    }
 
     AsyncLoadContents(
         modifier = modifier,
         screenState = screenState,
-        retryAction = { viewModel.fetch(postId) },
+        retryAction = { viewModel.fetch() },
+        terminate = { terminate.invoke() },
     ) { uiState ->
         PostDetailScreen(
             modifier = Modifier.fillMaxSize(),
+            revealState = revealState,
+            shouldShowReveal = shouldShowReveal,
             postDetail = uiState.postDetail,
+            comments = uiState.comments,
             creatorDetail = uiState.creatorDetail,
-            userData = uiState.userData,
+            isFollowed = uiState.creatorDetail.isFollowedIn(followStates),
+            setting = uiState.setting,
             metaData = uiState.metaData,
-            onClickPost = navigateToPostDetail,
+            bookmarkedPostIds = uiState.bookmarkedPostIds.toImmutableList(),
+            bodyTransState = uiState.bodyTransState,
+            commentsTransState = uiState.commentsTransState,
+            onClickBodyTranslate = viewModel::translate,
+            onClickCommentsTranslate = viewModel::translate,
+            onClickPost = { navigateTo(Destination.PostDetail(it, Destination.PostDetail.PagingType.Unknown)) },
             onClickPostLike = {
                 PostsLog.like(postId.value).send()
                 viewModel.postLike(it)
@@ -217,8 +307,8 @@ private fun PostDetailView(
                 PostsLog.comment(
                     postId = postId.value,
                     comment = body,
-                    parentCommentId = parent.value,
-                    rootCommentId = root.value,
+                    parentFanboxCommentId = parent.value,
+                    rootFanboxCommentId = root.value,
                 ).send()
 
                 viewModel.commentReply(postId, body, parent, root)
@@ -230,68 +320,105 @@ private fun PostDetailView(
                         commentId = it.value,
                     ).send()
 
-                    viewModel.commentDelete(it)
+                    viewModel.commentDelete(postId, it)
                 }
             },
-            onClickTag = { navigateToPostSearch.invoke(it, uiState.postDetail.user.creatorId) },
-            onClickCreator = navigateToCreatorPlans,
+            onClickTag = { tag ->
+                uiState.postDetail.user?.creatorId?.let { creatorId ->
+                    navigateTo(Destination.PostSearch(creatorId, null, tag))
+                }
+            },
+            onClickCreator = { navigateTo(Destination.CreatorTop(it, false)) },
             onClickImage = { item ->
                 uiState.postDetail.body.imageItems.indexOf(item).let { index ->
-                    navigateToPostImage.invoke(postId, index)
+                    navigateTo(Destination.PostImage(postId, index))
                 }
             },
             onClickFile = {
-                viewModel.downloadFiles(listOf(it)) {
-                    scope.launch {
-                        snackExtension.show(snackbarHostState, Res.string.common_downloaded)
-                    }
+                scope.launch {
+                    viewModel.downloadFiles(uiState.postDetail.id, uiState.postDetail.title, listOf(it))
+                    snackExtension.show(
+                        snackbarHostState = snackbarHostState,
+                        message = Res.string.queue_added,
+                        label = Res.string.queue_added_action,
+                        callback = { result ->
+                            if (result == SnackbarResult.ActionPerformed) {
+                                navigateTo(Destination.DownloadQueue)
+                            }
+                        },
+                    )
                 }
             },
             onClickDownloadImages = {
-                viewModel.downloadImages(it) {
-                    scope.launch {
-                        snackExtension.show(snackbarHostState, Res.string.common_downloaded)
-                    }
+                scope.launch {
+                    viewModel.downloadImages(uiState.postDetail.id, uiState.postDetail.title, it)
+                    snackExtension.show(
+                        snackbarHostState = snackbarHostState,
+                        message = Res.string.queue_added,
+                        label = Res.string.queue_added_action,
+                        callback = { result ->
+                            if (result == SnackbarResult.ActionPerformed) {
+                                navigateTo(Destination.DownloadQueue)
+                            }
+                        },
+                    )
                 }
             },
-            onClickCreatorPosts = navigateToCreatorPosts,
-            onClickCreatorPlans = navigateToCreatorPlans,
+            onClickCreatorPosts = { navigateTo(Destination.CreatorTop(it, true)) },
+            onClickCreatorPlans = { navigateTo(Destination.CreatorTop(it, false)) },
             onClickFollow = viewModel::follow,
             onClickUnfollow = viewModel::unfollow,
-            onClickOpenBrowser = { navigatorExtension.navigateToWebPage(it, PostDetailRoute) },
+            onClickOpenBrowser = { navigatorExtension.navigateToWebPage(it, "") },
+            onClickBillingPlus = { navigateTo(Destination.BillingPlusBottomSheet(it)) },
+            onRevealComplete = onRevealComplete,
             onTerminate = terminate,
         )
 
-        LaunchedEffect(uiState.messageToast) {
+        SideEffect(uiState.messageToast) {
             uiState.messageToast?.let { scope.launch { snackExtension.show(snackbarHostState, it) } }
             viewModel.consumeToast()
+        }
+
+        SideEffect(uiState.postDetail) {
+            onPostDetailFetch.invoke(uiState.postDetail)
         }
     }
 }
 
 @Composable
 private fun PostDetailScreen(
-    postDetail: FanboxPostDetail,
-    creatorDetail: FanboxCreatorDetail,
-    userData: UserData,
-    metaData: FanboxMetaData,
+    revealState: RevealState,
+    postDetail: PostDetail,
+    comments: PageOffsetInfo<Comment>,
+    creatorDetail: CreatorDetail,
+    isFollowed: Boolean,
+    bookmarkedPostIds: ImmutableList<PostId>,
+    setting: Setting,
+    metaData: MetaData,
+    bodyTransState: TranslationState<PostDetail>,
+    commentsTransState: TranslationState<PageOffsetInfo<Comment>>,
+    shouldShowReveal: Boolean,
+    onClickBodyTranslate: (PostDetail) -> Unit,
+    onClickCommentsTranslate: (PageOffsetInfo<Comment>) -> Unit,
     onClickPost: (PostId) -> Unit,
     onClickPostLike: (PostId) -> Unit,
-    onClickPostBookmark: (FanboxPost, Boolean) -> Unit,
+    onClickPostBookmark: (Post, Boolean) -> Unit,
     onClickCommentLoadMore: (PostId, Int) -> Unit,
     onClickCommentLike: (CommentId) -> Unit,
     onClickCommentReply: (String, CommentId, CommentId) -> Unit,
     onClickCommentDelete: (CommentId) -> Unit,
     onClickTag: (String) -> Unit,
     onClickCreator: (CreatorId) -> Unit,
-    onClickImage: (FanboxPostDetail.ImageItem) -> Unit,
-    onClickFile: (FanboxPostDetail.FileItem) -> Unit,
-    onClickDownloadImages: (List<FanboxPostDetail.ImageItem>) -> Unit,
+    onClickImage: (PostDetail.ImageItem) -> Unit,
+    onClickFile: (PostDetail.FileItem) -> Unit,
+    onClickDownloadImages: (List<PostDetail.ImageItem>) -> Unit,
     onClickCreatorPosts: (CreatorId) -> Unit,
     onClickCreatorPlans: (CreatorId) -> Unit,
-    onClickFollow: (String) -> Unit,
-    onClickUnfollow: (String) -> Unit,
+    onClickFollow: (UserId) -> Unit,
+    onClickUnfollow: (UserId) -> Unit,
     onClickOpenBrowser: (String) -> Unit,
+    onClickBillingPlus: (BillingReferrer) -> Unit,
+    onRevealComplete: () -> Unit,
     onTerminate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -299,31 +426,37 @@ private fun PostDetailScreen(
 
     var isShowMenu by remember { mutableStateOf(false) }
     var isPostLiked by rememberSaveable(postDetail.isLiked) { mutableStateOf(postDetail.isLiked) }
-    var isBookmarked by remember(postDetail.isBookmarked) { mutableStateOf(postDetail.isBookmarked) }
+    val isBookmarked by remember(bookmarkedPostIds) { mutableStateOf(bookmarkedPostIds.contains(postDetail.id)) }
 
     var isShowCommentEditor by remember { mutableStateOf(false) }
     var latestComment by remember { mutableStateOf("") }
 
-    LaunchedEffect(postDetail.commentList) {
+    SideEffect(comments) {
         if (isShowCommentEditor) {
-            val comments = postDetail.commentList.contents.flatMap { comment -> listOf(comment) + comment.replies }
-            isShowCommentEditor = !comments.any { comment -> comment.user.name == metaData.context.user.name && comment.body == latestComment }
+            val commentItems = comments.contents.flatMap { comment -> listOf(comment) + comment.replies }
+            isShowCommentEditor = !commentItems.any { comment ->
+                comment.user?.name == metaData.context?.user?.name && comment.body == latestComment
+            }
         }
     }
 
-    val isShowHeader = runCatching {
-        when (val content = postDetail.body) {
-            is FanboxPostDetail.Body.Article -> content.blocks.first() !is FanboxPostDetail.Body.Article.Block.Image
-            is FanboxPostDetail.Body.File -> true
-            is FanboxPostDetail.Body.Image -> false
-            is FanboxPostDetail.Body.Unknown -> true
+    if (shouldShowReveal) {
+        LaunchedEffect(shouldShowReveal) {
+            delay(500.milliseconds)
+            revealState.revealByStep(
+                keys = listOf(PostDetailRevealKeys.Translate),
+                onCompleted = onRevealComplete,
+            )
         }
-    }.getOrDefault(true)
+    }
+
+    val isShowHeader = postDetail.body.shouldShowHeader()
 
     Box(modifier) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             state = state,
+            contentPadding = PaddingValues(bottom = 128.dp),
         ) {
             if (isShowHeader) {
                 item {
@@ -338,7 +471,8 @@ private fun PostDetailScreen(
 
             postDetailItems(
                 post = postDetail,
-                userData = userData,
+                setting = setting,
+                bookmarkedPostIds = bookmarkedPostIds,
                 onClickCreator = onClickCreator,
                 onClickPost = onClickPost,
                 onClickPostLike = onClickPostLike,
@@ -367,8 +501,7 @@ private fun PostDetailScreen(
                         onClickPostLike.invoke(postDetail.id)
                     },
                     onClickBookmark = {
-                        isBookmarked = it
-                        onClickPostBookmark.invoke(postDetail.asPost(), isBookmarked)
+                        onClickPostBookmark.invoke(postDetail.adPost(), !isBookmarked)
                     },
                 )
             }
@@ -380,13 +513,13 @@ private fun PostDetailScreen(
             )
 
             // Android は NativeAds なので下部に置く
-            if (!userData.hasPrivilege && currentPlatform == Platform.Android) {
+            if (!setting.hasPrivilege && currentPlatform == Platform.Android) {
                 item {
                     NativeAdView(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, top = 16.dp)
                             .fillMaxWidth(),
-                        key = creatorDetail.creatorId.value
+                        key = "post-detail-${creatorDetail.creatorId.value}",
                     )
                 }
             }
@@ -398,6 +531,7 @@ private fun PostDetailScreen(
                         .fillMaxWidth(),
                     postDetail = postDetail,
                     creatorDetail = creatorDetail,
+                    isFollowed = isFollowed,
                     onClickCreator = { onClickCreatorPosts.invoke(it) },
                     onClickFollow = onClickFollow,
                     onClickUnfollow = onClickUnfollow,
@@ -407,7 +541,9 @@ private fun PostDetailScreen(
 
             postDetailCommentItems(
                 postDetail = postDetail,
+                comments = comments,
                 metaData = metaData,
+                commentsTransState = commentsTransState,
                 isShowCommentEditor = isShowCommentEditor,
                 onClickLoadMore = onClickCommentLoadMore,
                 onClickCommentLike = onClickCommentLike,
@@ -417,11 +553,14 @@ private fun PostDetailScreen(
                 },
                 onClickCommentDelete = onClickCommentDelete,
                 onClickShowCommentEditor = { isShowCommentEditor = it },
+                onClickTranslate = {
+                    if (setting.hasPrivilege) {
+                        onClickCommentsTranslate.invoke(it)
+                    } else {
+                        onClickBillingPlus.invoke(BillingReferrer.COMMENT_TRANSLATE)
+                    }
+                },
             )
-
-            item {
-                Spacer(modifier = Modifier.height(128.dp))
-            }
         }
 
         PostDetailTopAppBar(
@@ -429,24 +568,35 @@ private fun PostDetailScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth(),
             state = state,
+            revealState = revealState,
             postDetail = postDetail,
+            bodyTransState = bodyTransState,
             isShowHeader = isShowHeader,
             onClickNavigateUp = onTerminate,
+            onClickTranslate = {
+                if (setting.hasPrivilege) {
+                    onClickBodyTranslate.invoke(postDetail)
+                } else {
+                    onClickBillingPlus.invoke(BillingReferrer.POST_TRANSLATE)
+                }
+            },
             onClickMenu = { isShowMenu = true },
         )
     }
 
-    PostDetailMenuDialog(
-        isVisible = isShowMenu,
-        onClickOpenBrowser = { onClickOpenBrowser.invoke(postDetail.browserUrl) },
-        onClickAllDownload = { onClickDownloadImages.invoke(postDetail.body.imageItems) },
-        onDismissRequest = { isShowMenu = false },
-    )
+    if (isShowMenu) {
+        PostDetailMenuDialog(
+            onClickOpenBrowser = { onClickOpenBrowser.invoke(postDetail.browserUrl) },
+            onClickAllDownload = { onClickDownloadImages.invoke(postDetail.body.imageItems) },
+            onDismissRequest = { isShowMenu = false },
+        )
+    }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 private fun PostDetailHeader(
-    post: FanboxPostDetail,
+    post: PostDetail,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier) {
@@ -528,9 +678,58 @@ private fun FileThumbnail(
     ) {
         Icon(
             modifier = Modifier.size(48.dp),
-            imageVector = Icons.Filled.InsertDriveFile,
+            imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
             tint = Color.White,
             contentDescription = null,
         )
     }
+}
+
+@Composable
+private fun RevealOverlayScope.RevealOverlayContent(
+    key: Key,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    when (key) {
+        PostDetailRevealKeys.Translate -> {
+            OverlayText(
+                modifier = modifier.align(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = RevealOverlayArrangement.Bottom,
+                ),
+                text = stringResource(Res.string.reveal_post_detail_translate, appName),
+                arrow = Arrow.top(horizontalAlignment = Alignment.End),
+                containerColor = containerColor,
+                contentColor = contentColor,
+            )
+        }
+    }
+}
+
+private fun PostDetail.adPost(): Post = Post(
+    id = id,
+    title = title,
+    excerpt = excerpt,
+    cover = Cover(
+        url = coverImageUrl ?: body.imageItems.firstOrNull()?.thumbnailUrl.orEmpty(),
+        type = "From Detail",
+    ),
+    hasAdultContent = hasAdultContent,
+    isLiked = isLiked,
+    isRestricted = isRestricted,
+    likeCount = likeCount,
+    commentCount = commentCount,
+    updatedDatetime = updatedDatetime,
+    publishedDatetime = publishedDatetime,
+    feeRequired = feeRequired,
+    user = user,
+    tags = tags,
+)
+
+private fun Body.shouldShowHeader(): Boolean = when (this) {
+    is Body.Article -> blocks.firstOrNull() !is Block.Image
+    is Body.Image -> false
+    is Body.File, is Body.Text, is Body.Video, is Body.Html, is Body.Unknown -> true
 }

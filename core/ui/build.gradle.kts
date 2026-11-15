@@ -1,23 +1,21 @@
+@file:Suppress("UnusedPrivateProperty")
+
 plugins {
     id("pixiview.primitive.kmp.common")
-    id("pixiview.primitive.kmp.android.library")
-    id("pixiview.primitive.kmp.android.compose")
+    id("pixiview.primitive.android.library")
+    id("pixiview.primitive.kmp.compose")
     id("pixiview.primitive.kmp.android")
     id("pixiview.primitive.kmp.ios")
     id("pixiview.primitive.detekt")
 }
 
-android {
-    namespace = "me.matsumo.fanbox.core.ui"
-}
-
-compose.resources {
-    publicResClass = true
-    packageOfResClass = "me.matsumo.fanbox.core.ui"
-    generateResClass = always
-}
-
 kotlin {
+    android {
+        namespace = "me.matsumo.fanbox.core.ui"
+
+        withHostTest {}
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -26,9 +24,9 @@ kotlin {
                 implementation(project(":core:repository"))
                 implementation(project(":core:datastore"))
                 implementation(project(":core:logs"))
+                implementation(project(":core:resources"))
 
                 api(libs.bundles.ui.common.api)
-                api(libs.bundles.cupertino)
 
                 // Compose
                 api(compose.runtime)
@@ -40,31 +38,34 @@ kotlin {
                 api(compose.material3)
                 api(compose.ui)
                 api(compose.materialIconsExtended)
-                api(compose.components.resources)
+
+                api(libs.adaptive)
+                api(libs.adaptive.layout)
+                api(libs.adaptive.navigation)
 
                 api(libs.calf.ui)
                 api(libs.placeholder)
-                api(libs.kmp.paging.compose)
-                api(libs.play.service.ads)
+                api(libs.rich.editor)
+                api(libs.autolink)
+            }
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+
+        val androidHostTest by getting {
+            dependencies {
+                implementation(kotlin("test-junit"))
             }
         }
 
         val androidMain by getting {
-            dependsOn(commonMain)
-
             dependencies {
+                implementation(libs.bundles.media3)
+                api(libs.play.service.ads)
                 api(libs.bundles.ui.android.api)
             }
-        }
-
-        val iosX64Main by getting
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
-        val iosMain by getting {
-            dependsOn(commonMain)
-            iosX64Main.dependsOn(this)
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
         }
     }
 }

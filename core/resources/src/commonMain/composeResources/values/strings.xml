@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Common -->
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_allow">Allow</string>
+    <string name="common_denied">denied</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_reload">Reload</string>
+    <string name="common_back">Back</string>
+    <string name="common_close">Close</string>
+    <string name="common_next">Next</string>
+    <string name="common_finish">Complete</string>
+    <string name="common_skip">Skip</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_caution">Caution</string>
+    <string name="common_error">Error</string>
+    <string name="common_warning">Warning</string>
+    <string name="common_save">Save</string>
+    <string name="common_unknown">Unknown</string>
+    <string name="common_details">Details</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_completed">Completed</string>
+    <string name="common_download">Download</string>
+    <string name="common_downloaded">Downloaded</string>
+    <string name="common_supporting">Supporting</string>
+    <string name="common_follow">Follow</string>
+    <string name="common_unfollow">Following</string>
+    <string name="common_see_more">See more</string>
+    <string name="common_tag">tag</string>
+    <string name="common_post">Post</string>
+    <string name="common_creator">Post</string>
+    <string name="common_block">Block</string>
+    <string name="common_unblock">Unblock</string>
+
+    <!-- Common Error -->
+    <string name="error_executed">An error occurred</string>
+    <string name="error_unknown">An unknown error has occurred</string>
+    <string name="error_download">Download failed</string>
+    <string name="error_no_data">No data</string>
+    <string name="error_no_data_search">Please change the keyword and try again.</string>
+    <string name="error_no_data_discovery">There are no recommended creators.</string>
+    <string name="error_no_data_following">There are no creators you are following.</string>
+    <string name="error_no_data_supported">There are no creators being supported.</string>
+    <string name="error_no_data_creator">There are no posts.</string>
+    <string name="error_no_data_bookmark">There are no bookmarked posts.</string>
+    <string name="error_no_data_message">Message hasn't arrived yet.</string>
+    <string name="error_no_data_notify">Notification hasn't arrived yet.</string>
+    <string name="error_no_data_payments">There is no payment history.</string>
+    <string name="error_network">A communication error occurred</string>
+    <string name="error_network_description">Please check your network connection and try again.</string>
+    <string name="error_session_expired">Your session has expired. Please sign in again.</string>
+    <string name="error_forbidden">You do not have permission to view this content.</string>
+    <string name="error_rate_limited">Too many requests. Please wait a while and try again.</string>
+    <string name="error_server">FANBOX is not responding. Please try again later.</string>
+    <string name="error_schema_mismatch">Could not read the FANBOX response. Please update the app.</string>
+    <string name="error_guest_failure">Could not prepare to read FANBOX. Please restart the app.</string>
+    <string name="error_paging">Unable to continue pagination</string>
+    <string name="error_developing_feature">Feature under development</string>
+    <string name="error_billing">Failed to retrieve purchase information</string>
+    <string name="error_restricted_post">Pledge %1$d JPY per month or more to see this content</string>
+    <string name="error_restricted_post_ios">Cannot be viewed with current plan</string>
+    <string name="error_adult_content">Adult content</string>
+    <string name="error_adult_content_test_user">This content has been temporarily restricted</string>
+    <string name="error_adult_content_description">Show</string>
+    <string name="error_ios_gif_support">GIF preview on iOS is currently in development</string>
+    <string name="error_service_status">Service operation status</string>
+    <string name="error_challenged">FANBOX's security check stopped the connection. Please wait a while and try again, or try another network.</string>
+    <string name="error_region_blocked">FANBOX cannot be used from your current country or region.</string>
+    <string name="error_blocked">FANBOX refused connections from this network. Please try another network.</string>
+    <string name="login_session_unreadable_title">Could not read your login information</string>
+    <string name="login_session_unreadable_message">The saved login information can no longer be read. Please log in again.</string>
+    <string name="login_relogin">Log in again</string>
+    <string name="error_ad_load_failed">Failed to load ads.</string>
+    <string name="error_ad_load_failed_description">We display advertisements to maintain the quality of our service.</string>
+    <string name="error_no_available_this_device">This feature is not available on this device</string>
+
+    <!-- Common Unit -->
+    <string name="unit_day_before">%1$d days ago</string>
+    <string name="unit_hour_before">%1$d hours ago</string>
+    <string name="unit_minute_before">%1$d minutes ago</string>
+    <string name="unit_second_before">%1$d seconds ago</string>
+    <string name="unit_favorite">%1$d Likes</string>
+    <string name="unit_tag">%1$d items</string>
+    <string name="unit_jpy">%1$d JPY</string>
+    <string name="unit_year">Year</string>
+    <string name="unit_month">Month</string>
+    <string name="unit_day">Day</string>
+
+    <!-- Reveal -->
+    <string name="reveal_creator_top_search">Search for creators' posts by title, text, etc.\n(%1$s+ exclusive feature)</string>
+    <string name="reveal_creator_top_fab">Download all of a creator's posts at once.\n(%1$s+ exclusive feature)</string>
+    <string name="reveal_post_detail_translate">Translate the title and text of the post.\n(%1$s+ exclusive feature)</string>
+
+    <!-- Domain Validation -->
+    <string name="domain_validation_request_title">Open by default</string>
+    <string name="domain_validation_request_message">To open links to FANBOX with this app, additional settings are required.\n\nTurn on "Open by default" in settings and add the "*.fanbox.cc" link.</string>
+    <string name="domain_validation_request_button">Open setting</string>
+    <string name="domain_validation_request_never_ask">Never ask again</string>
+
+    <!-- Notify -->
+    <string name="notify_download_channel_name">Download</string>
+    <string name="notify_download_channel_description">Notify download progress</string>
+    <string name="notify_download_title">Downloading…</string>
+    <string name="notify_download_message">Download of illustrations is in progress (%1$d remaining)</string>
+
+    <!-- Library -->
+    <string name="library_navigation_home">Home</string>
+    <string name="library_navigation_discovery">Search</string>
+    <string name="library_navigation_notify">Notification</string>
+    <string name="library_navigation_message">Message</string>
+    <string name="library_navigation_bookmark">Bookmark</string>
+    <string name="library_navigation_following">Following</string>
+    <string name="library_navigation_supporting">Supporting</string>
+    <string name="library_navigation_payments">Payment history</string>
+    <string name="library_navigation_queue">Download queue</string>
+    <string name="library_navigation_setting">Settings</string>
+    <string name="library_navigation_about">About the app</string>
+    <string name="library_navigation_plus_description">Get access to all features for the price of a cup of coffee!</string>
+    <string name="library_navigation_plus_purchased_description">You are a %1$s+ user. Enjoy comfortable music listening!</string>
+
+    <!-- Fanbox -->
+    <string name="fanbox_free_fee">All users</string>
+    <string name="fanbox_plan_List">Plan list</string>
+
+    <!-- Home -->
+    <string name="home_tab_home">Following</string>
+    <string name="home_tab_supported">Supporting</string>
+    <string name="home_app_lock_title">Authentication required</string>
+    <string name="home_app_lock_message">App must be unlocked to use</string>
+    <string name="home_review_success">Thank you for your review</string>
+
+    <!-- Empty -->
+    <string name="empty_detail_title">Check post detail</string>
+    <string name="empty_detail_description">Select a post to see the details here</string>
+
+    <!-- Notify -->
+    <string name="notify_load_more">More</string>
+    <string name="notify_title_post_published">'%1$s' has been published!</string>
+    <string name="notify_title_comment">%1$s responded to your comment!</string>
+    <string name="notify_title_like">%1$d people liked your comment!</string>
+
+    <!-- Creator -->
+    <string name="creator_tab_posts">Posts</string>
+    <string name="creator_tab_plans">Plans</string>
+    <string name="creator_supporting_payment_method_card">Credit card</string>
+    <string name="creator_supporting_payment_method_paypal">PayPal</string>
+    <string name="creator_supporting_payment_method_cvs">Convenience store payment</string>
+    <string name="creator_supporting_payment_method_unknown">Unknown</string>
+    <string name="creator_supporting_fan_card">Fan card</string>
+    <string name="creator_supporting_plan_detail">Details</string>
+    <string name="creator_fan_card_not_supported">You do not support this creator</string>
+    <string name="creator_fan_card_switch_display_name">Switch name display</string>
+    <string name="creator_fan_card_download">Download fan card</string>
+    <string name="creator_tag_has_adult_content">Adult content</string>
+    <string name="creator_tag_has_booth_shop">BOOTH shop available</string>
+    <string name="creator_tag_is_supported">Supported</string>
+    <string name="creator_tag_is_accepting_request">Accepting request</string>
+    <string name="creator_download_all">Download posts in bulk</string>
+    <string name="creator_download_all_error">Batch download is a %1$s+ exclusive feature</string>
+    <string name="creator_block_dialog_title">Block</string>
+    <string name="creator_block_dialog_message">Would you like to block this creator?\n\nYou will need to restart the app to stop seeing blocked users.</string>
+    <string name="creator_unblock_dialog_title">Blocking</string>
+    <string name="creator_unblock_dialog_message">Would you like to unblock this creator?</string>
+    <string name="creator_plans_for_ios_error">Required navigate to FANBOX</string>
+    <string name="creator_plans_for_ios_error_description">Cannot check creator's plan from the app on iOS. Please check from the pixivFANBOX website. </string>
+    <string name="creator_plans_for_ios_error_button">Go to FANBOX</string>
+    <string name="creator_posts_download_title">Bulk download</string>
+    <string name="creator_posts_download_message">Download creator's posts in bulk. \n\n*In order to prevent the concentration of access to FANBOX, we have deliberately added a delay to the download speed. note that.</string>
+    <string name="creator_posts_download_prepare">Collecting creator information\nPlease wait for a while</string>
+    <string name="creator_posts_download_ignore_free">Skip free contents</string>
+    <string name="creator_posts_download_ignore_free_description">Omit posts that can be viewed even if you are not in the plan</string>
+    <string name="creator_posts_download_ignore_file">Skip files</string>
+    <string name="creator_posts_download_ignore_file_description">Omit files accompanying posts (ZIP, PDF, etc.)</string>
+    <string name="creator_posts_download_button">Bulk download (%1$d items)</string>
+    <string name="creator_posts_download_button_downloading">Bulk downloading (%1$d/%2$d)</string>
+    <string name="creator_posts_download_dialog_title">Retrieving posts…</string>
+    <string name="creator_posts_download_alert_title">Caution</string>
+    <string name="creator_posts_download_alert_message">Bulk download is in progress. \nDo you want to stop?</string>
+    <string name="creator_posts_download_alert_stop">Stop</string>
+    <string name="creator_posts_download_ignore_keyword_placeholder">Ignore keywords (comma separated)</string>
+    <string name="creator_recommended">Recommended creators</string>
+    <string name="creator_following_pixiv">Following on pixiv</string>
+    <string name="creator_download_require_plus_title">Download posts in bulk</string>
+    <string name="creator_download_require_plus_button">Purchase %1$s+</string>
+    <string name="creator_download_require_plus_button_ad">See Ad</string>
+    <string name="creator_download_require_plus_button_ad_over">Ad watched</string>
+    <string name="creator_reward_unlock_bulk_download_feature">Bulk download</string>
+    <string name="creator_reward_unlock_creator_search_feature">Post search</string>
+    <string name="creator_reward_unlock_translation_feature">Description translation</string>
+    <string name="creator_reward_unlock_search_title">Search creator posts</string>
+    <string name="creator_reward_unlock_translation_title">Translate creator description</string>
+    <string name="creator_reward_unlock_require_plus_message">%1$s is a %2$s+ exclusive feature.\n\nYou can temporarily use it by purchasing %2$s+ or watching an ad once per day for this feature.</string>
+
+    <!-- Bookmark -->
+    <string name="bookmark_search_placeholder">Search bookmark</string>
+    <string name="bookmark_empty_title">No bookmarks</string>
+    <string name="bookmark_empty_description">Find and bookmark your favorite posts!</string>
+
+    <!-- Queue -->
+    <string name="queue_empty_title">Download Queue is empty.</string>
+    <string name="queue_empty_description">If you select download, it will be placed in a queue and downloaded one by one.</string>
+    <string name="queue_added">Added to download queue</string>
+    <string name="queue_added_action">Check</string>
+    <string name="queue_saving">Saving…</string>
+    <string name="queue_item_post">Post</string>
+
+    <!-- PostDetail -->
+    <string name="post_detail_title">Post details</string>
+    <string name="post_detail_unsupported_content">This content is not supported yet</string>
+    <string name="post_detail_download_images">Download all images (%1$d)</string>
+    <string name="post_detail_creator">Creator</string>
+    <string name="post_detail_comment_title">Comment</string>
+    <string name="post_detail_comment_reply">Reply</string>
+    <string name="post_detail_comment_empty">No comments yet</string>
+    <string name="post_detail_comment_placeholder">Enter comment</string>
+    <string name="post_detail_comment_commented">Commented</string>
+    <string name="post_detail_comment_comment_failed">Comment failed</string>
+    <string name="post_detail_comment_delete_title">Delete comment</string>
+    <string name="post_detail_comment_delete_message">Do you want to delete this comment?</string>
+    <string name="post_detail_comment_delete_success">Deleted</string>
+    <string name="post_detail_comment_delete_failed">Delete failed</string>
+    <string name="post_detail_oldest_post">No previous post</string>
+    <string name="post_detail_newest_post">There are no next posts</string>
+    <string name="post_detail_all_posts">See all posts</string>
+    <string name="post_detail_downloading">Downloading… (%1$d remaining)</string>
+    <string name="post_detail_open_browser">Open in browser</string>
+    <string name="post_image_download">Download this image</string>
+    <string name="post_image_all_download">Download all images</string>
+    <string name="post_search_placeholder">Search creator tag</string>
+
+    <!-- Search -->
+    <string name="search_post_by_creator">Search posts by creators</string>
+
+    <!-- Settings -->
+    <string name="setting_title">Settings</string>
+    <string name="setting_top_theme">Theme</string>
+    <string name="setting_top_theme_app">App theme</string>
+    <string name="setting_top_theme_app_description">Change the app theme.</string>
+    <string name="setting_top_theme_app_light">Light theme</string>
+    <string name="setting_top_theme_app_dark">Dark theme</string>
+    <string name="setting_top_theme_app_system">System theme</string>
+    <string name="setting_top_theme_translate_language">Translation language</string>
+    <string name="setting_top_theme_translate_language_caution">(The translation function is experimental. It may be discontinued without notice.)</string>
+    <string name="setting_top_theme_translate_language_description">Please enter the language tag (BCP47) of the target language.</string>
+    <string name="setting_top_general">General</string>
+    <string name="setting_top_general_app_lock">Require password to start app</string>
+    <string name="setting_top_general_app_lock_description">Require a password when starting the app.</string>
+    <string name="setting_top_general_default_follow_tab">Make following default</string>
+    <string name="setting_top_general_default_follow_tab_description">Set the default tab on the home screen to follow.</string>
+    <string name="setting_top_general_hide_adult_contents">Hide adult content</string>
+    <string name="setting_top_general_hide_adult_contents_description">A warning will be displayed for adult content on the post list screen, etc.</string>
+    <string name="setting_top_general_override_adult_contents_setting">Override browsing settings</string>
+    <string name="setting_top_general_override_adult_contents_setting_description">Overrides the setting for displaying adult content set in FANBOX.</string>
+    <string name="setting_top_general_hide_restricted_contents">Hide restricted contents</string>
+    <string name="setting_top_general_hide_restricted_contents_description">Hide content that can only be viewed by supporters.</string>
+    <string name="setting_top_general_grid_mode">Grid Mode</string>
+    <string name="setting_top_general_grid_mode_description">Switch the viewing method of the post list screen to table format (list display).</string>
+    <string name="setting_top_general_infinity_post_detail">Swipe left or right to see posts</string>
+    <string name="setting_top_general_infinity_post_detail_description">You can now view previous and next posts by swiping left and right on the post details screen.</string>
+    <string name="setting_top_general_auto_image_preview">Automatic preview of image files</string>
+    <string name="setting_top_general_auto_image_preview_description">Images distributed in file formats (JPG, PNG) are automatically previewed in the same way as regular images.</string>
+    <string name="setting_top_information">Information</string>
+    <string name="setting_top_information_id">CAIOS ID</string>
+    <string name="setting_top_information_version">App version</string>
+    <string name="setting_top_information_guest">Guest</string>
+    <string name="setting_top_information_guest_reload_title">Reload guest</string>
+    <string name="setting_top_information_guest_reload_message">Loads the latest delivered guest again.</string>
+    <string name="setting_top_information_guest_reload">Reload</string>
+    <string name="setting_top_information_guest_reload_failed">Could not reload the guest</string>
+    <string name="guest_updating">Updating guest...</string>
+    <string name="setting_top_information_csrf_token">CSRF token</string>
+    <string name="setting_top_information_fanbox_session_id">FANBOXSESSID</string>
+    <string name="setting_top_information_team_of_service">Terms of Service</string>
+    <string name="setting_top_information_privacy_policy">Privacy Policy</string>
+    <string name="setting_top_others">Others</string>
+    <string name="setting_top_others_logout">Logout</string>
+    <string name="setting_top_others_logout_description">Delete your credentials and log out from FANBOX</string>
+    <string name="setting_top_others_logout_dialog_description">Do you want to log out of FANBOX?</string>
+    <string name="setting_top_others_logout_dialog_success">Logged out</string>
+    <string name="setting_top_others_logout_dialog_failed">Logout failed</string>
+    <string name="setting_top_others_delete_account">Account deletion</string>
+    <string name="setting_top_others_delete_account_description">Delete your FANBOX account</string>
+    <string name="setting_top_others_open_source_license">Open source license</string>
+    <string name="setting_top_others_open_source_license_description">Displays the OSS library license.</string>
+    <string name="setting_top_others_reshow_reveal">Revisit tutorial</string>
+    <string name="setting_top_others_reshow_reveal_description">Redisplays the tutorial that was shown when the feature was first displayed.</string>
+    <string name="setting_top_others_developer_mode">Development mode</string>
+    <string name="setting_top_others_developer_mode_description">[Warning] Do not enable this mode if you are not a developer.</string>
+    <string name="setting_top_file">File</string>
+    <string name="setting_top_file_directory">File location</string>
+    <string name="setting_top_file_directory_description">Change the save destination for downloaded files.</string>
+    <string name="setting_top_file_directory_image">Image location</string>
+    <string name="setting_top_file_directory_file">File location</string>
+    <string name="setting_top_file_directory_post">Batch downloaded items location</string>
+    <string name="setting_top_file_type">Download in original size</string>
+    <string name="setting_top_file_type_description">Always download images in their original size.</string>
+    <string name="setting_account">Account</string>
+    <string name="setting_account_title">Account settings</string>
+    <string name="setting_account_description">Change your account name, icon, etc.</string>
+    <string name="setting_notify_title">Notification settings</string>
+    <string name="setting_notify_description">Configure push notifications and email notifications.</string>
+    <string name="setting_theme_title">Theme</string>
+    <string name="setting_theme_theme_dynamic_color">Dynamic Color</string>
+    <string name="setting_theme_theme_dynamic_color_description">Uses Dynamic Color, which automatically extracts colors from the wallpaper set on your home page.</string>
+    <string name="setting_theme_color">Theme color</string>
+    <string name="setting_theme_color_description">Sets the app's theme color. Cannot be used at the same time as Dynamic Color.</string>
+    <string name="setting_developer_title">Development mode</string>
+    <string name="setting_developer_warning">You are trying to turn on this mode.Please enter the developer's PIN.\n\n[Warning] When this mode is turned on, you will not be able to receive any support.</string>
+
+    <!-- About -->
+    <string name="about_title">About the app</string>
+    <string name="about_name">%1$s</string>
+    <string name="about_developer_name">CAIOS</string>
+    <string name="about_developer_prefix">Developed and designed by</string>
+    <string name="about_special_thanks">SPECIAL THANKS</string>
+    <string name="about_special_thanks_contributor">GitHub Contributors</string>
+    <string name="about_special_thanks_contributor_description">Thank you to all the contributors who help make this app even better.</string>
+    <string name="about_contribute">CONTRIBUTE</string>
+    <string name="about_contribute_description">This app is OSS and licensed under the GPL. Contributions are always welcome. I am especially looking for someone to help me with translations into English and Chinese.</string>
+    <string name="about_for_ios_title">For iOS users</string>
+    <string name="about_support">SUPPORT</string>
+    <string name="about_support_version_history">Update history</string>
+    <string name="about_support_rate_app">Rate app</string>
+    <string name="about_support_opinion">Opinions/requests</string>
+    <string name="about_support_donate">Donate</string>
+
+    <!-- Billing -->
+    <string name="billing_plus_title">%1$s+</string>
+    <string name="billing_plus_description">%1$s+ is a support plan for developers that allows access to all features for the cost of one coffee per month.</string>
+    <string name="billing_plus_purchase_button">Buy for %1$s</string>
+    <string name="billing_plus_purchase_trial_button">Start %1$s free trial</string>
+    <string name="billing_plus_trial_label">Free trial: %1$s</string>
+    <string name="billing_plus_annual_discount_label">Save %1$d% compared to monthly</string>
+    <string name="billing_plus_trial_period_day">%1$d days</string>
+    <string name="billing_plus_trial_period_week">%1$d weeks</string>
+    <string name="billing_plus_trial_period_month">%1$d months</string>
+    <string name="billing_plus_trial_period_year">%1$d years</string>
+    <string name="billing_plus_verify_button">Restore purchase</string>
+    <string name="billing_plus_consume_button">Consume Purchase</string>
+    <string name="billing_plus_caution1">※ %1$s+ is a subscription service that adds exclusive features. the payment is made immediately, and to continue using the features, monthly or yearly renewal is necessary. you can cancel the subscription at any time.</string>
+    <string name="billing_plus_caution2">※ When using the app, you have already agreed to the Terms of Service and Privacy Policy, but please reconfirm them from the settings screen.</string>
+    <string name="billing_plus_toast_require_plus">This feature can only be used with %1$s+</string>
+    <string name="billing_plus_plan_monthly">Normal Plan</string>
+    <string name="billing_plus_plan_yearly">Annual Plan</string>
+    <string name="billing_plus_toast_purchased">Purchased</string>
+    <string name="billing_plus_toast_purchased_error">Purchase failed</string>
+    <string name="billing_plus_toast_consumed">Consumed</string>
+    <string name="billing_plus_toast_consumed_error">Consumption failed</string>
+    <string name="billing_plus_toast_verify">Purchase restored</string>
+    <string name="billing_plus_toast_verify_error">Purchase information not found</string>
+    <string name="billing_plus_item_hide_ads">Hide ads</string>
+    <string name="billing_plus_item_hide_ads_description">Hide all ads in the app and enjoy posting more comfortably!</string>
+    <string name="billing_plus_item_download">Bulk download</string>
+    <string name="billing_plus_item_download_description">Download creators' posts in bulk and enjoy them on other media!</string>
+    <string name="billing_plus_item_lock">Lock app</string>
+    <string name="billing_plus_item_lock_description">Require a password when starting the app to increase security!</string>
+    <string name="billing_plus_item_hide_restricted">Hide posts outside the support plan</string>
+    <string name="billing_plus_item_hide_restricted_description">Hide posts that cannot be seen outside of your support plan to improve visibility!</string>
+    <string name="billing_plus_item_widget">Home widget</string>
+    <string name="billing_plus_item_widget_description">Add a widget to your home screen and check posts from home! (Scheduled to be provided in an update)</string>
+    <string name="billing_plus_item_material_you">Material You</string>
+    <string name="billing_plus_item_material_you_description">Customize all versions to your liking with custom themes by Material You!</string>
+    <string name="billing_plus_item_accent_color">Accent color</string>
+    <string name="billing_plus_item_accent_color_description">Freely set the accent color of the app!</string>
+    <string name="billing_plus_item_feature">Add new features</string>
+    <string name="billing_plus_item_feature_description">Be the first to experience new features when they are added!</string>
+    <string name="billing_plus_item_support">Priority support</string>
+    <string name="billing_plus_item_support_description">Always give top priority support!</string>
+    <string name="billing_retention_title">Your Plus benefits are still available</string>
+    <string name="billing_retention_message">Your subscription is scheduled to end, but Plus is active until the current period finishes. Before it ends, please check the options that may help you keep using PixiView comfortably.</string>
+    <string name="billing_retention_annual_title">Annual plan can reduce renewal stress</string>
+    <string name="billing_retention_annual_description">If you are using the monthly plan, switching to annual keeps the same Plus benefits with fewer renewals and a better long-term price.</string>
+    <string name="billing_retention_pause_title">You can pause instead of leaving</string>
+    <string name="billing_retention_pause_description">If you only need a short break, open the store subscription page and check whether pause or renewal options are available for your account.</string>
+    <string name="billing_retention_benefits_title">Plus keeps these features available</string>
+    <string name="billing_retention_benefit_hide_ads">Hide ads while browsing posts</string>
+    <string name="billing_retention_benefit_bulk_download">Bulk download creator posts</string>
+    <string name="billing_retention_benefit_grid">Use grid display and advanced viewing settings</string>
+    <string name="billing_retention_benefit_support">Support continued app development</string>
+    <string name="billing_retention_primary_button">View annual plan</string>
+    <string name="billing_retention_manage_button">Manage subscription</string>
+    <string name="billing_plus_cancel_title">Plan canceled</string>
+    <string name="billing_plus_cancel_message">Your %1$s+ plan was canceled, so returned to being a regular user. \n\nIf this is not what you intended, the payment may have failed. Please check the plan status from the Play Store.</string>
+    <string name="billing_plus_purchase_title">Supported!!</string>
+    <string name="billing_plus_purchase_message">Your purchase has been completed. \nThank you for your support!</string>
+
+    <!-- Welcome -->
+    <string name="welcome_description">This app is an unofficial client application for pixivFANBOX</string>
+    <string name="welcome_privacy_policy">Privacy policy</string>
+    <string name="welcome_team_of_service">Terms of Service</string>
+    <string name="welcome_agree">Agree with %1$s</string>
+    <string name="welcome_button_next">Get started</string>
+    <string name="welcome_login_title">Login</string>
+    <string name="welcome_login_message">You must log in with your Pixiv account to use this app</string>
+    <string name="welcome_login_ready_title">Logged in</string>
+    <string name="welcome_login_ready_message">You are already logged in with your Pixiv account</string>
+    <string name="welcome_login_toast_success">Logged in</string>
+    <string name="welcome_login_toast_failed">Login failed</string>
+    <string name="welcome_login_button_login">Login</string>
+    <string name="welcome_login_button_next">Next</string>
+    <string name="welcome_login_dialog_title">Notes on login</string>
+    <string name="welcome_login_dialog_message">Authentication using Google or X (Twitter)'s OAuth is not supported due to security concerns. \n\nPlease log in by directly entering your email address and password.</string>
+    <string name="welcome_login_debug_dialog_title">Caution</string>
+    <string name="welcome_login_debug_dialog_message">Do you want to perform a debug login?\n\nDebug accounts are pre-provisioned accounts that mimic the behavior of regular users. In order to preserve the staging environment, some operations may not be possible or errors may occur.</string>
+    <string name="welcome_login_other_title">Direct Input of FANBOXSESSID</string>
+    <string name="welcome_login_other_message">This app requires a session ID called FANBOXSESSID to function. Please follow the instructions in the link below to obtain FANBOXSESSID and input it.</string>
+    <string name="welcome_login_web_help">If You Cannot Log In</string>
+    <string name="welcome_login_web_help_description">If you enter your email and password, and although it seems like you are logged in on the screen, the screen does not automatically transition, please try the following:\n\nClose this dialog once and navigate to a page that requires login to view content (e.g., the post details of a creator you are supporting).\n\nOnce you have navigated to such a page, press the 'If You Cannot Log In' button at the bottom of the screen again to display this dialog.\n\nIn this state, tap the login button at the bottom of the dialog. The app will attempt to retrieve login information from WebView and log you in."</string>
+    <string name="welcome_permission_title">Permissions</string>
+    <string name="welcome_permission_message">The following permissions are required to use the app\nClick the button below to grant permission</string>
+    <string name="welcome_permission_ready_title">Ready</string>
+    <string name="welcome_permission_ready_message">All permissions required to use the app have been granted</string>
+    <string name="welcome_permission_storage">Storage</string>
+    <string name="welcome_permission_storage_message">To store content</string>
+    <string name="welcome_permission_notification">Notification</string>
+    <string name="welcome_permission_notification_message">To display notifications</string>
+    <string name="welcome_permission_allowed">ALLOWED</string>
+    <string name="welcome_permission_denied">DENIED</string>
+    <string name="welcome_permission_optional">OPTIONAL</string>
+    <string name="welcome_permission_allow_button">Allow</string>
+    <string name="welcome_permission_complete_button">Complete</string>
+</resources>

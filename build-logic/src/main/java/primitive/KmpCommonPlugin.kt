@@ -1,11 +1,12 @@
 package primitive
-import org.gradle.api.JavaVersion
+import me.matsumo.fanbox.library
+import me.matsumo.fanbox.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
-import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
+/** Kotlin Multiplatform の共通依存と階層構造を設定する。 */
 class KmpCommonPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
@@ -14,20 +15,12 @@ class KmpCommonPlugin : Plugin<Project> {
             }
 
             kotlin {
-                // https://stackoverflow.com/questions/36465824/android-studio-task-testclasses-not-found-in-project
-                task("testClasses")
-            }
+                applyDefaultHierarchyTemplate()
 
-            tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java) {
-                kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
-                compilerOptions.freeCompilerArgs.addAll(
-                    "-P",
-                    "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
-                )
-            }
-
-            tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink>().configureEach {
-                notCompatibleWithConfigurationCache("Configuration chache not supported for a system property read at configuration time")
+                sourceSets.commonMain.dependencies {
+                    val kotlinBom = libs.library("kotlin-bom")
+                    implementation(project.dependencies.platform(kotlinBom))
+                }
             }
         }
     }

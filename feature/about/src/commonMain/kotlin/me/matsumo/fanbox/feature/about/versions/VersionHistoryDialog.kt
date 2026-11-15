@@ -35,8 +35,8 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import me.matsumo.fanbox.core.model.Version
 import me.matsumo.fanbox.core.model.entity.VersionEntity
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.about_support_version_history
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.about_support_version_history
 import me.matsumo.fanbox.core.ui.extensition.Platform
 import me.matsumo.fanbox.core.ui.extensition.currentPlatform
 import me.matsumo.fanbox.core.ui.theme.end
@@ -148,14 +148,18 @@ private fun getVersions(): List<Version> {
         json = Res.readBytes("files/versions.json").decodeToString()
     }
 
-    return if (json.isBlank()) emptyList() else Json.decodeFromString(serializer, json)
-        .map {
-            Version(
-                name = it.versionName,
-                code = it.versionCode,
-                date = it.date,
-                message = if (Locale.current.language == "ja") it.logJp else it.logEn,
-            )
-        }
-        .sortedByDescending { it.code }
+    return if (json.isBlank()) {
+        emptyList()
+    } else {
+        Json.decodeFromString(serializer, json)
+            .map {
+                Version(
+                    name = it.versionName,
+                    code = it.versionCode,
+                    date = it.date,
+                    message = if (Locale.current.language == "ja") it.logJp else it.logEn,
+                )
+            }
+            .sortedByDescending { it.code }
+    }
 }

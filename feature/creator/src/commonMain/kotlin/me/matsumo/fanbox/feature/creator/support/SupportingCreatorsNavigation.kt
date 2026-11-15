@@ -2,29 +2,14 @@ package me.matsumo.fanbox.feature.creator.support
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavOptions
-import androidx.navigation.compose.composable
-import me.matsumo.fanbox.core.ui.extensition.navigateWithLog
+import androidx.navigation3.runtime.EntryProviderScope
+import me.matsumo.fanbox.core.model.Destination
 
-const val SupportingCreatorsRoute = "supportingCreators"
-
-fun NavController.navigateToSupportingCreators(navOptions: NavOptions? = null) {
-    this.navigateWithLog(SupportingCreatorsRoute, navOptions)
-}
-
-fun NavGraphBuilder.supportingCreatorsScreen(
-    navigateToCreatorPosts: (CreatorId) -> Unit,
-    navigateToFanCard: (CreatorId) -> Unit,
-    terminate: () -> Unit,
-) {
-    composable(SupportingCreatorsRoute) {
+fun EntryProviderScope<Destination>.supportingCreatorsEntry(navigateTo: (Destination) -> Unit, terminate: () -> Unit) {
+    entry<Destination.SupportingCreators> {
         SupportingCreatorsRoute(
             modifier = Modifier.fillMaxSize(),
-            navigateToCreatorPosts = navigateToCreatorPosts,
-            navigateToFanCard = navigateToFanCard,
+            navigateTo = navigateTo,
             terminate = terminate,
         )
     }

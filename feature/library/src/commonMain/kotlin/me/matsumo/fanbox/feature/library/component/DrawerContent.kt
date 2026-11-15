@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.Notifications
@@ -49,47 +50,42 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavDestination
-import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.ui.Res
+import me.matsumo.fanbox.core.model.BillingReferrer
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.im_default_user
+import me.matsumo.fanbox.core.resources.library_navigation_about
+import me.matsumo.fanbox.core.resources.library_navigation_bookmark
+import me.matsumo.fanbox.core.resources.library_navigation_discovery
+import me.matsumo.fanbox.core.resources.library_navigation_following
+import me.matsumo.fanbox.core.resources.library_navigation_home
+import me.matsumo.fanbox.core.resources.library_navigation_message
+import me.matsumo.fanbox.core.resources.library_navigation_notify
+import me.matsumo.fanbox.core.resources.library_navigation_payments
+import me.matsumo.fanbox.core.resources.library_navigation_plus_description
+import me.matsumo.fanbox.core.resources.library_navigation_plus_purchased_description
+import me.matsumo.fanbox.core.resources.library_navigation_queue
+import me.matsumo.fanbox.core.resources.library_navigation_setting
+import me.matsumo.fanbox.core.resources.library_navigation_supporting
 import me.matsumo.fanbox.core.ui.appName
 import me.matsumo.fanbox.core.ui.extensition.FadePlaceHolder
 import me.matsumo.fanbox.core.ui.extensition.LocalFanboxMetadata
 import me.matsumo.fanbox.core.ui.extensition.asCoilImage
-import me.matsumo.fanbox.core.ui.im_default_user
-import me.matsumo.fanbox.core.ui.library_navigation_about
-import me.matsumo.fanbox.core.ui.library_navigation_bookmark
-import me.matsumo.fanbox.core.ui.library_navigation_discovery
-import me.matsumo.fanbox.core.ui.library_navigation_following
-import me.matsumo.fanbox.core.ui.library_navigation_home
-import me.matsumo.fanbox.core.ui.library_navigation_message
-import me.matsumo.fanbox.core.ui.library_navigation_notify
-import me.matsumo.fanbox.core.ui.library_navigation_payments
-import me.matsumo.fanbox.core.ui.library_navigation_plus_description
-import me.matsumo.fanbox.core.ui.library_navigation_plus_purchased_description
-import me.matsumo.fanbox.core.ui.library_navigation_setting
-import me.matsumo.fanbox.core.ui.library_navigation_supporting
 import me.matsumo.fanbox.core.ui.theme.bold
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun DrawerContent(
     state: DrawerState?,
-    userData: UserData?,
-    currentDestination: NavDestination?,
+    setting: Setting?,
+    currentDestination: LibraryDestination,
     onClickLibrary: (LibraryDestination) -> Unit,
-    navigateToBookmarkedPosts: () -> Unit,
-    navigateToFollowingCreators: () -> Unit,
-    navigateToSupportingCreators: () -> Unit,
-    navigateToPayments: () -> Unit,
-    navigateToSetting: () -> Unit,
-    navigateToAbout: () -> Unit,
-    navigateToBillingPlus: (String?) -> Unit,
+    navigateTo: (Destination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -105,95 +101,114 @@ fun DrawerContent(
                 .statusBarsPadding(),
         )
 
-        NavigationDrawerItem(
-            modifier = Modifier.padding(top = 8.dp),
-            state = state,
-            isSelected = currentDestination.isLibraryDestinationInHierarchy(LibraryDestination.Home),
-            label = stringResource(Res.string.library_navigation_home),
-            icon = Icons.Outlined.Home,
-            selectedIcon = Icons.Default.Home,
-            onClick = { onClickLibrary.invoke(LibraryDestination.Home) },
-        )
+        if (setting?.isTestUser == false) {
+            NavigationDrawerItem(
+                modifier = Modifier.padding(top = 8.dp),
+                state = state,
+                isSelected = currentDestination == LibraryDestination.Home,
+                label = stringResource(Res.string.library_navigation_home),
+                icon = Icons.Outlined.Home,
+                selectedIcon = Icons.Default.Home,
+                onClick = { onClickLibrary.invoke(LibraryDestination.Home) },
+            )
+        }
 
         NavigationDrawerItem(
             state = state,
-            isSelected = currentDestination.isLibraryDestinationInHierarchy(LibraryDestination.Discovery),
+            isSelected = currentDestination == LibraryDestination.Discovery,
             label = stringResource(Res.string.library_navigation_discovery),
             icon = Icons.Outlined.Search,
             selectedIcon = Icons.Default.Search,
             onClick = { onClickLibrary.invoke(LibraryDestination.Discovery) },
         )
 
-        NavigationDrawerItem(
-            state = state,
-            isSelected = currentDestination.isLibraryDestinationInHierarchy(LibraryDestination.Notify),
-            label = stringResource(Res.string.library_navigation_notify),
-            icon = Icons.Outlined.Notifications,
-            selectedIcon = Icons.Default.Notifications,
-            onClick = { onClickLibrary.invoke(LibraryDestination.Notify) },
-        )
+        if (setting?.isTestUser == false) {
+            NavigationDrawerItem(
+                state = state,
+                isSelected = currentDestination == LibraryDestination.Notify,
+                label = stringResource(Res.string.library_navigation_notify),
+                icon = Icons.Outlined.Notifications,
+                selectedIcon = Icons.Default.Notifications,
+                onClick = { onClickLibrary.invoke(LibraryDestination.Notify) },
+            )
+        }
 
-        NavigationDrawerItem(
-            state = state,
-            isSelected = currentDestination.isLibraryDestinationInHierarchy(LibraryDestination.Message),
-            label = stringResource(Res.string.library_navigation_message),
-            icon = Icons.Outlined.Mail,
-            selectedIcon = Icons.Default.Mail,
-            onClick = { onClickLibrary.invoke(LibraryDestination.Message) },
-        )
+        if (setting?.isTestUser == false) {
+            NavigationDrawerItem(
+                state = state,
+                isSelected = currentDestination == LibraryDestination.Message,
+                label = stringResource(Res.string.library_navigation_message),
+                icon = Icons.Outlined.Mail,
+                selectedIcon = Icons.Default.Mail,
+                onClick = { onClickLibrary.invoke(LibraryDestination.Message) },
+            )
+        }
 
         HorizontalDivider(
             modifier = Modifier
                 .padding(vertical = 8.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
         )
 
         NavigationDrawerItem(
             state = state,
             label = stringResource(Res.string.library_navigation_bookmark),
             icon = Icons.Outlined.Bookmark,
-            onClick = navigateToBookmarkedPosts,
+            onClick = { navigateTo(Destination.BookmarkedPosts) },
         )
+
+        if (setting?.isTestUser == false) {
+            NavigationDrawerItem(
+                state = state,
+                label = stringResource(Res.string.library_navigation_following),
+                icon = Icons.Outlined.PersonAdd,
+                onClick = { navigateTo(Destination.FollowingCreators) },
+            )
+        }
+
+        if (setting?.isTestUser == false) {
+            NavigationDrawerItem(
+                state = state,
+                label = stringResource(Res.string.library_navigation_supporting),
+                icon = Icons.Outlined.Group,
+                onClick = { navigateTo(Destination.SupportingCreators) },
+            )
+        }
+
+        if (setting?.isTestUser == false) {
+            NavigationDrawerItem(
+                state = state,
+                label = stringResource(Res.string.library_navigation_payments),
+                icon = Icons.Outlined.Payment,
+                onClick = { navigateTo(Destination.Payments) },
+            )
+        }
 
         NavigationDrawerItem(
             state = state,
-            label = stringResource(Res.string.library_navigation_following),
-            icon = Icons.Outlined.PersonAdd,
-            onClick = navigateToFollowingCreators,
-        )
-
-        NavigationDrawerItem(
-            state = state,
-            label = stringResource(Res.string.library_navigation_supporting),
-            icon = Icons.Outlined.Group,
-            onClick = navigateToSupportingCreators,
-        )
-
-        NavigationDrawerItem(
-            state = state,
-            label = stringResource(Res.string.library_navigation_payments),
-            icon = Icons.Outlined.Payment,
-            onClick = navigateToPayments,
+            label = stringResource(Res.string.library_navigation_queue),
+            icon = Icons.Filled.Download,
+            onClick = { navigateTo(Destination.DownloadQueue) },
         )
 
         HorizontalDivider(
             modifier = Modifier
                 .padding(vertical = 8.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
         )
 
         NavigationDrawerItem(
             state = state,
             label = stringResource(Res.string.library_navigation_setting),
             icon = Icons.Default.Settings,
-            onClick = navigateToSetting,
+            onClick = { navigateTo(Destination.SettingTop) },
         )
 
         NavigationDrawerItem(
             state = state,
             label = stringResource(Res.string.library_navigation_about),
             icon = Icons.Outlined.Info,
-            onClick = navigateToAbout,
+            onClick = { navigateTo(Destination.About) },
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -201,21 +216,22 @@ fun DrawerContent(
         HorizontalDivider(
             modifier = Modifier
                 .padding(top = 8.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
         )
 
         NavigationDrawerPlusItem(
             state = state,
-            isPlusMode = userData?.isPlusMode == true,
-            isDeveloperMode = userData?.isDeveloperMode == true,
-            onClick = { navigateToBillingPlus.invoke("drawer") },
+            isPlusMode = setting?.isPlusMode == true,
+            isDeveloperMode = setting?.isDeveloperMode == true,
+            onClick = { navigateTo(Destination.BillingPlusBottomSheet(BillingReferrer.DRAWER)) },
         )
     }
 }
 
-@OptIn(ExperimentalCoilApi::class)
 @Composable
-private fun NavigationDrawerHeader(modifier: Modifier = Modifier) {
+private fun NavigationDrawerHeader(
+    modifier: Modifier = Modifier,
+) {
     val metadata = LocalFanboxMetadata.current
 
     Row(
@@ -229,7 +245,7 @@ private fun NavigationDrawerHeader(modifier: Modifier = Modifier) {
                 .clip(CircleShape),
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .error(Res.drawable.im_default_user.asCoilImage())
-                .data(metadata.context.user.iconUrl)
+                .data(metadata.context?.user?.iconUrl)
                 .build(),
             loading = {
                 FadePlaceHolder()
@@ -243,14 +259,14 @@ private fun NavigationDrawerHeader(modifier: Modifier = Modifier) {
         ) {
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = metadata.context.user.name,
+                text = metadata.context?.user?.name.takeIf { !it.isNullOrBlank() } ?: "Unknown User",
                 style = MaterialTheme.typography.titleMedium.bold(),
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = "@${metadata.context.user.userId}",
+                text = "@${metadata.context?.user?.userId?.value ?: "Unknown"}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

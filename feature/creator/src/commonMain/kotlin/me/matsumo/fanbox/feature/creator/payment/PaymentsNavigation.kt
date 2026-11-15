@@ -2,27 +2,14 @@ package me.matsumo.fanbox.feature.creator.payment
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import me.matsumo.fanbox.core.model.fanbox.id.CreatorId
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavOptions
-import androidx.navigation.compose.composable
-import me.matsumo.fanbox.core.ui.extensition.navigateWithLog
+import androidx.navigation3.runtime.EntryProviderScope
+import me.matsumo.fanbox.core.model.Destination
 
-const val PaymentsRoute = "payments"
-
-fun NavController.navigateToPayments(navOptions: NavOptions? = null) {
-    this.navigateWithLog(PaymentsRoute, navOptions)
-}
-
-fun NavGraphBuilder.paymentsScreen(
-    navigateToCreatorPosts: (CreatorId) -> Unit,
-    terminate: () -> Unit,
-) {
-    composable(PaymentsRoute) {
+fun EntryProviderScope<Destination>.paymentsEntry(navigateTo: (Destination) -> Unit, terminate: () -> Unit) {
+    entry<Destination.Payments> {
         PaymentsRoute(
             modifier = Modifier.fillMaxSize(),
-            navigateToCreatorPosts = navigateToCreatorPosts,
+            navigateTo = navigateTo,
             terminate = terminate,
         )
     }

@@ -8,14 +8,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.matsumo.fanbox.core.common.util.suspendRunCatching
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.fanbox.FanboxNewsLetter
+import me.matsumo.fanbox.core.model.fanbox.NewsLetter
+import me.matsumo.fanbox.core.model.toScreenStateError
 import me.matsumo.fanbox.core.repository.FanboxRepository
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.error_network
 
-class LibraryMessageViewModel(
-    private val fanboxRepository: FanboxRepository,
-) : ViewModel() {
+class LibraryMessageViewModel(private val fanboxRepository: FanboxRepository) : ViewModel() {
 
     private val _screenState = MutableStateFlow<ScreenState<LibraryMessageUiState>>(ScreenState.Loading)
 
@@ -34,13 +31,11 @@ class LibraryMessageViewModel(
                 )
             }.fold(
                 onSuccess = { ScreenState.Idle(it) },
-                onFailure = { ScreenState.Error(Res.string.error_network) },
+                onFailure = { it.toScreenStateError() },
             )
         }
     }
 }
 
 @Stable
-data class LibraryMessageUiState(
-    val messages: List<FanboxNewsLetter>,
-)
+data class LibraryMessageUiState(val messages: List<NewsLetter>)

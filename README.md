@@ -8,7 +8,7 @@ PixiView is an unofficial Android & iOS client app for pixivFANBOX.
 
 <div align="center">
   <a href="./LICENSE">
-    <img alt="LICENSE" src="https://img.shields.io/badge/license-GPL-blue.svg?maxAge=43200" />
+    <img alt="LICENSE" src="https://img.shields.io/badge/license-CC--BY--NC%204.0-lightgrey" />
   </a>
   <a href="">
     <img src="https://img.shields.io/badge/supports-Android%208+-AD2A5A">
@@ -94,7 +94,9 @@ graph LR
     build-logic
   end
   subgraph application
-    app
+    androidApp
+    iosApp
+    shared
   end
   subgraph core
     common
@@ -108,9 +110,11 @@ graph LR
     creator
     post
   end
-  app --> library
-  app --> creator
-  app --> post
+  androidApp --> shared
+  iosApp --> shared
+  shared --> library
+  shared --> creator
+  shared --> post
   library --> ui
   library --> repository
   post --> ui
@@ -123,56 +127,125 @@ graph LR
   model --> common
 ```
 
+The FANBOX models the screens work with are owned by this app and live in `core/model`. The
+`fankt` library has its own models, and `core/repository` converts between the two. A change to a
+`fankt` model therefore stops at that conversion layer instead of reaching the screens.
+
+`core/datastore` writes bookmarks with `fankt`'s own serializer, so bookmarks saved by an earlier
+version stay readable. That is a persistence boundary, not a screen one.
+
+Contracts that are not models still come straight from `fankt`, wherever they are needed: the
+exception type the network layer throws, the cookie and session storage `fankt` requires, and the
+client entry point itself. Those are not part of the conversion described above.
+
+## Remote parsing updates
+When FANBOX changes its API, the app stops being able to talk to it, and a fix would otherwise reach
+you only through a store update. To close that gap, the app fetches a signed bundle that builds every
+FANBOX request and interprets every response, and runs it instead of code shipped in the release.
+This applies to both Android and iOS.
+
+This is used only to keep up with changes to the FANBOX API. It does not add features, and it does
+not change what the app does with your data. The bundle never sees your cookies: the app sends every
+request itself, after checking that it goes to FANBOX.
+
+The bundle is verified against public keys compiled into the app. One that fails verification is
+not executed. A verified bundle is cached on the device, so later launches download only what
+changed, and a launch that cannot reach the delivery target runs the cached one. When there is no
+bundle to run, as on a first launch that cannot reach the delivery target, the app uses the same
+code as it was when the release was built. Fixes published since then apply the next time the app
+starts and loads a bundle.
+
+What the app fetches is not whatever was published most recently. A bundle reaches the delivery
+target the app reads only when someone promotes it there deliberately; work that has not been
+promoted stays on a separate target the app does not read. Turning on developer mode switches the app
+to that separate target, which is how a bundle gets checked before it is promoted. The change applies
+the next time the app starts. Each target has its own cache, so a bundle cached from one never runs
+in place of the other. A faulty bundle is fixed by publishing a corrected one or by rolling
+the delivery target back to the previous one.
+
+The Android app reports when a bundle loads, with the version it loaded, to Firebase Analytics, and
+reports a bundle that fails to load or to handle a response to Firebase Crashlytics. These reports
+carry neither response contents nor credentials. The Information section of the settings screen
+shows which bundle is handling FANBOX: the commit it was built from, followed by `(cache)` when it was
+loaded from the cache, or `Native` when the app is using the code it was released with.
+
+## Static analysis
+
+Static analysis uses detekt 2.0.0-alpha.6, its ktlint wrapper, and Compose rules 0.6.8.
+The root task checks root/build-logic Kotlin files; module tasks check each module's Kotlin files.
+
+```bash
+./gradlew detekt reportMerge --continue
+./gradlew :androidApp:lintDebug
+```
+
+Run `./gradlew detekt --auto-correct --continue` to format code, then rerun without auto-correction.
+The merged Checkstyle report is `build/reports/detekt/merge.xml`; module HTML reports are under each module's `build/reports/detekt/detekt.html`.
+Merging includes only plain detekt reports.
+
+Functions and constructors use separate parameter lines for three or more parameters, or whenever a parameter has a default value.
+`FunctionSignature` and `ClassSignature` enforce the parameter-count threshold.
+Review default-parameter wrapping, named arguments and wrapping at call sites, placing `modifier` first, and composable PascalCase names and screen prefixes manually.
+Method chains allow two calls per line, excluding property accesses.
+`MaxChainedCallsOnSameLine` is disabled because it also counts properties; review method chains and per-link Modifier wrapping manually.
+Line length does not determine wrapping.
+
+`config/detekt/detekt.yml` matches the shared Agents template.
+Complexity and function-count thresholds use detekt defaults; function-count limits are 11.
+Only declarations with a concrete reason to stay together use `@Suppress`, with that reason directly above the annotation.
+Exceptions cover flows requiring initial cursor fetching, screen event handlers, declarative UI builders, and effects whose navigation or focus timing must be preserved.
+Cleanup of the unused fork is tracked in the [Pager/Snapper migration](https://github.com/matsumo0922/PixiView-KMP/issues/163) issue.
+The [iOS entry point migration](https://github.com/matsumo0922/PixiView-KMP/issues/164) requires coordinated Swift changes; [Modifier double application](https://github.com/matsumo0922/PixiView-KMP/issues/165) preserves existing layouts until its separate cleanup.
+Cyclomatic complexity checks include composables.
+Modifier checks cover all visibilities, excluding previews and wrappers without their own layout.
+
+Full mode covers Android main, host tests, and app debug; type-dependent rules do not cover iosMain.
+iOS is checked with light mode and actual compilation.
+Type-dependent rules run separately from the merged plain detekt report:
+
+```bash
+./gradlew detektMainAndroid detektHostTestAndroid :androidApp:detektDebug :androidApp:detektDebugUnitTest :androidApp:detektDebugAndroidTest --continue
+```
+
+Module `check` tasks and CI also run the corresponding full-mode tasks.
+These tasks preserve the source sets generated by detekt and exclude generated files under build directories.
+When KMP `expect`/`actual` compiler-analysis diagnostics occur, distinguish rule findings, analysis diagnostics, and actual Android/iOS compilation results.
+The log-event template in `scripts/daifuku/templates/LogCategory.kt.erb` is maintained together with the generated declarations.
+After generation, check formatting with `./gradlew :core:logs:detekt --auto-correct`.
+Log events and their parameters are listed in `scripts/daifuku/log_definitions/`, one Markdown file per category. Definitions that are no longer sent are kept in `scripts/daifuku/log_definitions/obsoleted/`, which the generator does not read.
+Each event is sent to Firebase Analytics as `<category>_<event>`, for example `billing_paywall_shown`.
+
 ## Contribute
 
 This app uses Gradle's Convention Plugins to standardize the build logic, and all the logic is written in a module called `build-logic`. For information on this approach, see [nowinandroid](https://github.com/matsumo0922/nowinandroid/tree/main/build-logic).
 
 If you find a bug, want to improve a feature, or want to develop a new feature, please first write an issue. Then assign yourself and work on the development. Pull requests are always welcome :smile:
 
-This app is monetized using AdMob. When building manually from GitHub, you need to write the AdMob App ID in `local.properties`. By default it contains a dummy ID, which causes it to crash on startup. Alternatively, please delete the AdMob code and build the app. In addition, various IDs are described in `local.properties`. See `app/build.gradle.kts` or `PixiViewConfig` for details.
+This app is monetized using AdMob. When building manually from GitHub, you need to write the AdMob App ID in `local.properties`. By default it contains a dummy ID, which causes it to crash on startup. Alternatively, please delete the AdMob code and build the app. In addition, various IDs are described in `local.properties`. See `androidApp/build.gradle.kts`, `shared/build.gradle.kts`, or `core/common/src/commonMain/kotlin/me/matsumo/fanbox/core/common/PixiViewConfig.kt` for details.
+
+Release builds (`bundleRelease` / `assembleRelease`) fail if any of the following Android AdMob IDs is unset or still a test ID. The error message lists the keys to set in `local.properties`. Debug builds use test IDs for unset keys.
+
+- `ADMOB_ANDROID_APP_ID`
+- `ADMOB_ANDROID_BANNER_AD_UNIT_ID`
+- `ADMOB_ANDROID_NATIVE_AD_UNIT_ID`
+- `ADMOB_ANDROID_REWARD_AD_UNIT_ID`
+- `ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID`
 
 ## License
 
 ```text
 PixiView
-Copyright (C) 2023 daichi-matsumoto
+Copyright 2025 daichi-matsumoto
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+Licensed under the Creative Commons NonCommercial License (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+https://creativecommons.org/licenses/by-nc/4.0/
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-Also you can contact me by electronic mail at caios.system@gmail.com.
-
-If the program does terminal interaction, make it output a short
-notice like this when it starts in an interactive mode:
-
-    PixiView  Copyright (C) 2023 daichi-matsumoto
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
-    This is free software, and you are welcome to redistribute it
-    under certain conditions; type `show c' for details.
-
-The hypothetical commands `show w' and `show c' should show the appropriate
-parts of the General Public License.  Of course, your program's commands
-might be different; for a GUI interface, you would use an "about box".
-
-You should also get your employer (if you work as a programmer) or school,
-if any, to sign a "copyright disclaimer" for the program, if necessary.
-For more information on this, and how to apply and follow the GNU GPL, see
-<https://www.gnu.org/licenses/>.
-
-The GNU General Public License does not permit incorporating your program
-into proprietary programs.  If your program is a subroutine library, you
-may consider it more useful to permit linking proprietary applications with
-the library.  If this is what you want to do, use the GNU Lesser General
-Public License instead of this License.  But first, please read
-<https://www.gnu.org/licenses/why-not-lgpl.html>.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 ```

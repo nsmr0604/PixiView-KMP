@@ -11,6 +11,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
@@ -22,27 +24,31 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.icerock.moko.biometry.compose.BindBiometryAuthenticatorEffect
 import dev.icerock.moko.biometry.compose.rememberBiometryAuthenticatorFactory
-import io.github.alexzhirkevich.cupertino.adaptive.AdaptiveScaffold
-import io.github.alexzhirkevich.cupertino.adaptive.ExperimentalAdaptiveApi
 import kotlinx.coroutines.launch
 import me.matsumo.fanbox.core.common.PixiViewConfig
 import me.matsumo.fanbox.core.logs.category.WelcomeLog
 import me.matsumo.fanbox.core.logs.logger.send
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxMetaData
+import me.matsumo.fanbox.core.model.BillingReferrer
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.DownloadFileType
+import me.matsumo.fanbox.core.model.GuestSource
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.SimpleAlertContents
+import me.matsumo.fanbox.core.model.fanbox.MetaData
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.billing_plus_toast_require_plus
+import me.matsumo.fanbox.core.resources.setting_title
+import me.matsumo.fanbox.core.resources.setting_top_information_guest_reload_failed
+import me.matsumo.fanbox.core.resources.setting_top_others_logout_dialog_failed
+import me.matsumo.fanbox.core.resources.setting_top_others_logout_dialog_success
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
-import me.matsumo.fanbox.core.ui.Res
 import me.matsumo.fanbox.core.ui.appName
-import me.matsumo.fanbox.core.ui.billing_plus_toast_require_plus
 import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
 import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
 import me.matsumo.fanbox.core.ui.extensition.ToastExtension
-import me.matsumo.fanbox.core.ui.setting_title
-import me.matsumo.fanbox.core.ui.setting_top_others_logout_dialog_failed
-import me.matsumo.fanbox.core.ui.setting_top_others_logout_dialog_success
-import me.matsumo.fanbox.core.ui.view.SimpleAlertContents
 import me.matsumo.fanbox.feature.setting.SettingTheme
 import me.matsumo.fanbox.feature.setting.top.items.SettingTopAccountSection
+import me.matsumo.fanbox.feature.setting.top.items.SettingTopFileSection
 import me.matsumo.fanbox.feature.setting.top.items.SettingTopGeneralSection
 import me.matsumo.fanbox.feature.setting.top.items.SettingTopInformationSection
 import me.matsumo.fanbox.feature.setting.top.items.SettingTopOthersSection
@@ -53,11 +59,8 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun SettingTopRoute(
-    navigateToThemeSetting: () -> Unit,
-    navigateToBillingPlus: (String?) -> Unit,
-    navigateToLogoutDialog: (SimpleAlertContents, () -> Unit) -> Unit,
-    navigateToOpenSourceLicense: () -> Unit,
-    navigateToSettingDeveloper: () -> Unit,
+    navigateTo: (Destination) -> Unit,
+    navigateToSimpleAlertDialog: (SimpleAlertContents, () -> Unit) -> Unit,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingTopViewModel = koinViewModel(),
@@ -76,13 +79,19 @@ internal fun SettingTopRoute(
     AsyncLoadContents(
         modifier = modifier,
         screenState = screenState,
+        terminate = { terminate.invoke() },
     ) { uiState ->
-        fun requirePlus(setting: Boolean, settingMethod: (Boolean) -> Unit, referrer: String) {
+        fun requirePlus(
+            setting: Boolean,
+            settingMethod: (Boolean) -> Unit,
+            referrer: BillingReferrer,
+        ) {
             if (setting) {
-                if (uiState.userData.hasPrivilege) settingMethod.invoke(true)
-                else {
+                if (uiState.setting.hasPrivilege) {
+                    settingMethod.invoke(true)
+                } else {
                     scope.launch { toastExtension.show(snackbarHostState, requirePlus) }
-                    navigateToBillingPlus.invoke(referrer)
+                    navigateTo(Destination.BillingPlusBottomSheet(referrer))
                 }
             } else {
                 settingMethod.invoke(false)
@@ -91,43 +100,74 @@ internal fun SettingTopRoute(
 
         SettingTopScreen(
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-            userData = uiState.userData,
+            setting = uiState.setting,
             metaData = uiState.metaData,
             fanboxSessionId = uiState.fanboxSessionId,
+            guestSource = uiState.guestSource,
             config = uiState.config,
-            onClickThemeSetting = navigateToThemeSetting,
-            onClickAccountSetting = { navigatorExtension.navigateToWebPage("https://www.fanbox.cc/user/settings", SettingTopRoute) },
-            onClickNotifySetting = { navigatorExtension.navigateToWebPage("https://www.fanbox.cc/notifications/settings", SettingTopRoute) },
-            onClickTeamsOfService = { navigatorExtension.navigateToWebPage("https://www.matsumo.me/application/pixiview/team_of_service", SettingTopRoute) },
-            onClickPrivacyPolicy = { navigatorExtension.navigateToWebPage("https://www.matsumo.me/application/pixiview/privacy_policy", SettingTopRoute) },
-            onClickOpenSourceLicense = navigateToOpenSourceLicense,
+            onClickThemeSetting = { navigateTo(Destination.SettingTheme) },
+            onClickTranslationLanguage = {
+                if (uiState.setting.hasPrivilege) {
+                    navigateTo(Destination.SettingTranslationDialog(it))
+                } else {
+                    scope.launch { toastExtension.show(snackbarHostState, requirePlus) }
+                    navigateTo(Destination.BillingPlusBottomSheet(BillingReferrer.SETTING_TRANSLATION_LANGUAGE))
+                }
+            },
+            onClickDirectory = { navigateTo(Destination.SettingDirectory) },
+            onClickAccountSetting = {
+                navigatorExtension.navigateToWebPage("https://www.fanbox.cc/user/settings", "")
+            },
+            onClickNotifySetting = {
+                navigatorExtension.navigateToWebPage("https://www.fanbox.cc/notifications/settings", "")
+            },
+            onClickTeamsOfService = {
+                navigatorExtension.navigateToWebPage("https://www.matsumo.me/application/pixiview/team_of_service", "")
+            },
+            onClickPrivacyPolicy = {
+                navigatorExtension.navigateToWebPage("https://www.matsumo.me/application/pixiview/privacy_policy", "")
+            },
+            onClickDownloadFileType = viewModel::setDownloadFileType,
+            onClickOpenSourceLicense = { navigateTo(Destination.SettingLicense) },
             onClickFollowTabDefaultHome = viewModel::setFollowTabDefaultHome,
             onClickHideAdultContents = viewModel::setHideAdultContents,
             onClickOverrideAdultContents = viewModel::setOverrideAdultContents,
-            onClickInfinityPostDetail = viewModel::setUseInfinityPostDetail,
-            onClickGridMode = { requirePlus(it, viewModel::setGridMode, "isUseGridMode") },
-            onClickHideRestricted = { requirePlus(it, viewModel::setHideRestricted, "isHideRestricted") },
-            onClickAppLock = { requirePlus(it, viewModel::setAppLock, "isUseAppLock") },
-            onClickAutoImagePreview = { requirePlus(it, viewModel::setAutoImagePreview, "isAutoImagePreview") },
+            onClickInfinityPostDetail = {
+                requirePlus(it, viewModel::setUseInfinityPostDetail, BillingReferrer.SETTING_INFINITY_POST_DETAIL)
+            },
+            onClickGridMode = { requirePlus(it, viewModel::setGridMode, BillingReferrer.SETTING_GRID_MODE) },
+            onClickHideRestrictedContents = { requirePlus(it, viewModel::setHideRestricted, BillingReferrer.SETTING_HIDE_RESTRICTED) },
+            onClickAppLock = { requirePlus(it, viewModel::setAppLock, BillingReferrer.SETTING_APP_LOCK) },
+            onClickAutoImagePreview = { requirePlus(it, viewModel::setAutoImagePreview, BillingReferrer.SETTING_AUTO_IMAGE_PREVIEW) },
+            onClickReshowReveal = viewModel::setReshowReveal,
             onClickLogout = {
-                navigateToLogoutDialog(SimpleAlertContents.Logout) {
+                navigateToSimpleAlertDialog(SimpleAlertContents.Logout) {
                     scope.launch {
                         viewModel.logout().fold(
                             onSuccess = {
                                 WelcomeLog.loggedOut().send()
-                                scope.launch { toastExtension.show(snackbarHostState, Res.string.setting_top_others_logout_dialog_success) }
+                                scope.launch {
+                                    toastExtension.show(snackbarHostState, Res.string.setting_top_others_logout_dialog_success)
+                                }
                                 terminate.invoke()
                             },
                             onFailure = {
-                                scope.launch { toastExtension.show(snackbarHostState, Res.string.setting_top_others_logout_dialog_failed) }
+                                scope.launch {
+                                    toastExtension.show(snackbarHostState, Res.string.setting_top_others_logout_dialog_failed)
+                                }
                             },
                         )
                     }
                 }
             },
+            onTripleClickGuest = {
+                navigateToSimpleAlertDialog(SimpleAlertContents.GuestReload) {
+                    scope.launch { reloadGuest(viewModel, toastExtension, snackbarHostState) }
+                }
+            },
             onClickDeveloperMode = { isEnable ->
                 if (isEnable) {
-                    navigateToSettingDeveloper.invoke()
+                    navigateTo(Destination.SettingDeveloperDialog)
                 } else {
                     viewModel.setDeveloperMode(false)
                 }
@@ -139,28 +179,44 @@ internal fun SettingTopRoute(
     BindBiometryAuthenticatorEffect(biometryAuthenticator)
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAdaptiveApi::class)
+private suspend fun reloadGuest(
+    viewModel: SettingTopViewModel,
+    toastExtension: ToastExtension,
+    snackbarHostState: SnackbarHostState,
+) {
+    viewModel.reloadGuest().onFailure {
+        toastExtension.show(snackbarHostState, Res.string.setting_top_information_guest_reload_failed)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingTopScreen(
-    userData: UserData,
-    metaData: FanboxMetaData,
+    setting: Setting,
+    metaData: MetaData,
     fanboxSessionId: String,
+    guestSource: GuestSource,
     config: PixiViewConfig,
     onClickThemeSetting: () -> Unit,
+    onClickTranslationLanguage: (String) -> Unit,
     onClickAccountSetting: () -> Unit,
+    onClickDirectory: () -> Unit,
+    onClickDownloadFileType: (DownloadFileType) -> Unit,
     onClickNotifySetting: () -> Unit,
     onClickAppLock: (Boolean) -> Unit,
     onClickFollowTabDefaultHome: (Boolean) -> Unit,
     onClickHideAdultContents: (Boolean) -> Unit,
     onClickOverrideAdultContents: (Boolean) -> Unit,
-    onClickHideRestricted: (Boolean) -> Unit,
+    onClickHideRestrictedContents: (Boolean) -> Unit,
     onClickGridMode: (Boolean) -> Unit,
     onClickInfinityPostDetail: (Boolean) -> Unit,
     onClickAutoImagePreview: (Boolean) -> Unit,
     onClickTeamsOfService: () -> Unit,
     onClickPrivacyPolicy: () -> Unit,
+    onClickReshowReveal: () -> Unit,
     onClickLogout: () -> Unit,
     onClickOpenSourceLicense: () -> Unit,
+    onTripleClickGuest: () -> Unit,
     onClickDeveloperMode: (Boolean) -> Unit,
     onTerminate: () -> Unit,
     modifier: Modifier = Modifier,
@@ -168,7 +224,7 @@ private fun SettingTopScreen(
     val state = rememberTopAppBarState()
     val behavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(state)
 
-    AdaptiveScaffold(
+    Scaffold(
         modifier = modifier.nestedScroll(behavior.nestedScrollConnection),
         topBar = {
             SettingTheme {
@@ -208,18 +264,29 @@ private fun SettingTopScreen(
                 SettingTopThemeSection(
                     modifier = Modifier.fillMaxWidth(),
                     onClickAppTheme = onClickThemeSetting,
+                    onClickTranslationLanguage = onClickTranslationLanguage,
+                    translationLanguage = setting.translateLanguage,
+                )
+            }
+
+            item {
+                SettingTopFileSection(
+                    modifier = Modifier.fillMaxWidth(),
+                    setting = setting,
+                    onClickDirectory = onClickDirectory,
+                    onClickDownloadFileType = onClickDownloadFileType,
                 )
             }
 
             item {
                 SettingTopGeneralSection(
                     modifier = Modifier.fillMaxWidth(),
-                    userData = userData,
+                    setting = setting,
                     onClickAppLock = onClickAppLock,
                     onClickFollowTabDefaultHome = onClickFollowTabDefaultHome,
                     onClickHideAdultContents = onClickHideAdultContents,
                     onClickOverrideAdultContents = onClickOverrideAdultContents,
-                    onClickHideRestricted = onClickHideRestricted,
+                    onClickHideRestrictedContents = onClickHideRestrictedContents,
                     onClickGridMode = onClickGridMode,
                     onClickInfinityPostDetail = onClickInfinityPostDetail,
                     onClickAutoImagePreview = onClickAutoImagePreview,
@@ -230,18 +297,21 @@ private fun SettingTopScreen(
                 SettingTopInformationSection(
                     modifier = Modifier.fillMaxWidth(),
                     config = config,
-                    userData = userData,
+                    setting = setting,
                     fanboxMetaData = metaData,
                     fanboxSessionId = fanboxSessionId,
+                    guestSource = guestSource,
+                    onTripleClickGuest = onTripleClickGuest,
                 )
             }
 
             item {
                 SettingTopOthersSection(
                     modifier = Modifier.fillMaxWidth(),
-                    userData = userData,
+                    setting = setting,
                     onClickTeamsOfService = onClickTeamsOfService,
                     onClickPrivacyPolicy = onClickPrivacyPolicy,
+                    onClickReshowReveal = onClickReshowReveal,
                     onClickLogout = onClickLogout,
                     onClickOpenSourceLicense = onClickOpenSourceLicense,
                     onClickDeveloperMode = onClickDeveloperMode,

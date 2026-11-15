@@ -6,106 +6,129 @@ import androidx.lifecycle.viewModelScope
 import dev.icerock.moko.biometry.BiometryAuthenticator
 import dev.icerock.moko.resources.desc.desc
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.WhileSubscribed
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.matsumo.fanbox.core.common.PixiViewConfig
 import me.matsumo.fanbox.core.common.util.suspendRunCatching
+import me.matsumo.fanbox.core.model.DownloadFileType
+import me.matsumo.fanbox.core.model.Flag
+import me.matsumo.fanbox.core.model.GuestSource
 import me.matsumo.fanbox.core.model.ScreenState
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxMetaData
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.MetaData
 import me.matsumo.fanbox.core.repository.FanboxRepository
-import me.matsumo.fanbox.core.repository.UserDataRepository
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.error_no_data
-import me.matsumo.fanbox.core.ui.home_app_lock_message
-import me.matsumo.fanbox.core.ui.home_app_lock_title
+import me.matsumo.fanbox.core.repository.FlagRepository
+import me.matsumo.fanbox.core.repository.SettingRepository
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_no_data
+import me.matsumo.fanbox.core.resources.home_app_lock_message
+import me.matsumo.fanbox.core.resources.home_app_lock_title
+import me.matsumo.fanbox.core.ui.extensition.getFanboxMetadataDummy
 import org.jetbrains.compose.resources.getString
+import kotlin.time.Duration.Companion.seconds
 
+// 設定項目の setter を画面 callback と1対1で対応させ、画面の coroutine scope で更新する。
+@Suppress("TooManyFunctions")
 class SettingTopViewModel(
-    private val userDataRepository: UserDataRepository,
+    private val settingRepository: SettingRepository,
     private val fanboxRepository: FanboxRepository,
-    private val pixiViewConfig: PixiViewConfig,
+    private val flagRepository: FlagRepository,
+    pixiViewConfig: PixiViewConfig,
 ) : ViewModel() {
 
-    val screenState = combine(userDataRepository.userData, fanboxRepository.cookie, fanboxRepository.metaData, ::Triple).map { (userData, cookie, metaData) ->
-        val cookieMap = cookie.split(";")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .associate { it.split("=", limit = 2).let { item -> item[0] to item[1] } }
-
-        ScreenState.Idle(
-            SettingTopUiState(
-                userData = userData,
-                metaData = metaData,
-                fanboxSessionId = cookieMap["FANBOXSESSID"] ?: "unknown",
-                config = pixiViewConfig,
-            ),
+    // guest の出所が変わっても metadata は取り直さず、表示だけを更新する。
+    val screenState = combine(settingRepository.setting, fanboxRepository.sessionId, ::Pair).map { (userData, sessionId) ->
+        SettingTopUiState(
+            setting = userData,
+            metaData = suspendRunCatching { fanboxRepository.getMetadata() }.getOrElse { getFanboxMetadataDummy() },
+            fanboxSessionId = sessionId ?: "Unknown",
+            guestSource = fanboxRepository.guestSource.value,
+            config = pixiViewConfig,
         )
+    }.combine(fanboxRepository.guestSource) { uiState, guestSource ->
+        ScreenState.Idle(uiState.copy(guestSource = guestSource))
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.WhileSubscribed(stopTimeout = 5.seconds),
         initialValue = ScreenState.Loading,
     )
 
-    suspend fun logout(): Result<Unit> {
-        return suspendRunCatching {
-            fanboxRepository.logout()
-        }
+    suspend fun logout(): Result<Unit> = suspendRunCatching {
+        fanboxRepository.logout()
+    }
+
+    suspend fun reloadGuest(): Result<Unit> = suspendRunCatching {
+        fanboxRepository.reloadGuest()
     }
 
     fun setAppLock(isAppLock: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setUseAppLock(isAppLock)
+            settingRepository.setUseAppLock(isAppLock)
+        }
+    }
+
+    fun setDownloadFileType(downloadFileType: DownloadFileType) {
+        viewModelScope.launch {
+            settingRepository.setDownloadFileType(downloadFileType)
         }
     }
 
     fun setFollowTabDefaultHome(isFollowTabDefaultHome: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setFollowTabDefaultHome(isFollowTabDefaultHome)
+            settingRepository.setFollowTabDefaultHome(isFollowTabDefaultHome)
         }
     }
 
     fun setHideAdultContents(isHideAdultContents: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setHideAdultContents(isHideAdultContents)
+            settingRepository.setHideAdultContents(isHideAdultContents)
         }
     }
 
     fun setOverrideAdultContents(isOverrideAdultContents: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setOverrideAdultContents(isOverrideAdultContents)
+            settingRepository.setOverrideAdultContents(isOverrideAdultContents)
         }
     }
 
     fun setUseInfinityPostDetail(isInfinityPostDetail: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setUseInfinityPostDetail(isInfinityPostDetail)
+            settingRepository.setUseInfinityPostDetail(isInfinityPostDetail)
         }
     }
 
     fun setHideRestricted(isHideRestricted: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setHideRestricted(isHideRestricted)
+            settingRepository.setHideRestricted(isHideRestricted)
         }
     }
 
     fun setGridMode(isGridMode: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setUseGridMode(isGridMode)
+            settingRepository.setUseGridMode(isGridMode)
         }
     }
 
     fun setAutoImagePreview(isAutoImagePreview: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setAutoImagePreview(isAutoImagePreview)
+            settingRepository.setAutoImagePreview(isAutoImagePreview)
+        }
+    }
+
+    fun setReshowReveal() {
+        viewModelScope.launch {
+            flagRepository.setFlag(Flag.REVEAL_CREATOR_TOP, true)
+            flagRepository.setFlag(Flag.REVEAL_POST_DETAIL, true)
+            flagRepository.setFlag(Flag.SHOULD_REQUEST_DOMAIN_VERIFICATION, true)
         }
     }
 
     fun setDeveloperMode(isDeveloperMode: Boolean) {
         viewModelScope.launch {
-            userDataRepository.setDeveloperMode(isDeveloperMode)
+            settingRepository.setDeveloperMode(isDeveloperMode)
         }
     }
 
@@ -114,7 +137,7 @@ class SettingTopViewModel(
             requestTitle = getString(Res.string.home_app_lock_title).desc(),
             requestReason = getString(Res.string.home_app_lock_message).desc(),
             failureButtonText = getString(Res.string.error_no_data).desc(),
-            allowDeviceCredentials = true
+            allowDeviceCredentials = true,
         )
     }.fold(
         onSuccess = { it },
@@ -124,8 +147,9 @@ class SettingTopViewModel(
 
 @Stable
 data class SettingTopUiState(
-    val userData: UserData,
-    val metaData: FanboxMetaData,
+    val setting: Setting,
+    val metaData: MetaData,
     val fanboxSessionId: String,
+    val guestSource: GuestSource,
     val config: PixiViewConfig,
 )

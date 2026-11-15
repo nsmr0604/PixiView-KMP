@@ -1,61 +1,115 @@
 package me.matsumo.fanbox.feature.post.detail
 
 import androidx.compose.runtime.Stable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
+import app.cash.paging.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.model.UserData
-import me.matsumo.fanbox.core.model.fanbox.FanboxPost
+import me.matsumo.fanbox.core.common.util.suspendRunCatching
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.Flag
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.model.fanbox.Post
+import me.matsumo.fanbox.core.model.fanbox.PostId
 import me.matsumo.fanbox.core.repository.FanboxRepository
-import me.matsumo.fanbox.core.repository.UserDataRepository
+import me.matsumo.fanbox.core.repository.FlagRepository
+import me.matsumo.fanbox.core.repository.SettingRepository
+import me.matsumo.fanbox.core.ui.extensition.createStaticPaging
 import me.matsumo.fanbox.core.ui.extensition.emptyPaging
-import me.matsumo.fanbox.feature.post.detail.PostDetailPagingType.Creator
-import me.matsumo.fanbox.feature.post.detail.PostDetailPagingType.Home
-import me.matsumo.fanbox.feature.post.detail.PostDetailPagingType.Search
-import me.matsumo.fanbox.feature.post.detail.PostDetailPagingType.Supported
-import me.matsumo.fanbox.feature.post.detail.PostDetailPagingType.Unknown
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 
 class PostDetailRootViewModel(
-    private val userDataRepository: UserDataRepository,
+    destination: Destination.PostDetail,
+    private val settingRepository: SettingRepository,
     private val fanboxRepository: FanboxRepository,
+    private val flagRepository: FlagRepository,
 ) : ViewModel() {
+
+    private val postId = destination.postId
+    private val type = destination.pagingType
 
     private val _uiState = MutableStateFlow(
         PostDetailRootUiState(
-            paging = null,
-            userData = UserData.default(),
+            paging = emptyPaging(),
+            setting = Setting.default(),
+            bookmarkedPostIds = emptyList(),
+            shouldShowReveal = false,
         ),
     )
 
     val uiState = _uiState.asStateFlow()
 
-    fun fetch(type: PostDetailPagingType) {
+    init {
+        fetch()
+
         viewModelScope.launch {
-            val userData = userDataRepository.userData.first()
+            fanboxRepository.bookmarkedPostsIds.collectLatest {
+                _uiState.value = _uiState.value.copy(bookmarkedPostIds = it)
+            }
+        }
+
+        viewModelScope.launch {
+            settingRepository.setting.collectLatest {
+                _uiState.value = _uiState.value.copy(setting = it)
+            }
+        }
+    }
+
+    fun fetch() {
+        viewModelScope.launch {
+            val userData = settingRepository.setting.first()
             val loadSize = if (userData.isHideRestricted || userData.isUseGridMode) 20 else 10
             val isHideRestricted = userData.isHideRestricted
 
+            val paging = when (type) {
+                Destination.PostDetail.PagingType.Home -> fanboxRepository.getHomePostsPagerCache(loadSize, isHideRestricted).toIdFlow()
+                Destination.PostDetail.PagingType.Supported -> fanboxRepository.getSupportedPostsPagerCache(loadSize, isHideRestricted).toIdFlow()
+                Destination.PostDetail.PagingType.Creator -> fanboxRepository.getCreatorPostsPagerCache()?.toIdFlow()
+                Destination.PostDetail.PagingType.Search -> fanboxRepository.getPostsFromQueryPagerCache()?.toIdFlow()
+                Destination.PostDetail.PagingType.Unknown -> createStaticPaging(listOf(postId))
+            }
+
             _uiState.value = PostDetailRootUiState(
-                paging = when (type) {
-                    Home -> fanboxRepository.getHomePostsPagerCache(loadSize, isHideRestricted)
-                    Supported -> fanboxRepository.getSupportedPostsPagerCache(loadSize, isHideRestricted)
-                    Creator -> fanboxRepository.getCreatorPostsPagerCache()
-                    Search -> fanboxRepository.getPostsFromQueryPagerCache()
-                    Unknown -> emptyPaging()
-                },
-                userData = userData,
+                paging = paging,
+                setting = userData,
+                bookmarkedPostIds = fanboxRepository.bookmarkedPostsIds.first(),
+                shouldShowReveal = flagRepository.getFlag(Flag.REVEAL_POST_DETAIL, true),
             )
         }
     }
+
+    fun postBookmark(post: Post, isBookmarked: Boolean) {
+        viewModelScope.launch {
+            suspendRunCatching {
+                if (isBookmarked) {
+                    fanboxRepository.bookmarkPost(post)
+                } else {
+                    fanboxRepository.unbookmarkPost(post)
+                }
+            }
+        }
+    }
+
+    fun finishReveal() {
+        viewModelScope.launch {
+            flagRepository.setFlag(Flag.REVEAL_POST_DETAIL, false)
+            _uiState.value = _uiState.value.copy(shouldShowReveal = false)
+        }
+    }
+
+    private fun Flow<PagingData<Post>>.toIdFlow(): Flow<PagingData<PostId>> = map { list -> list.map { it.id } }
 }
 
 @Stable
 data class PostDetailRootUiState(
-    val paging: Flow<PagingData<FanboxPost>>?,
-    val userData: UserData,
+    val paging: Flow<PagingData<PostId>>?,
+    val setting: Setting,
+    val bookmarkedPostIds: List<PostId>,
+    val shouldShowReveal: Boolean,
 )

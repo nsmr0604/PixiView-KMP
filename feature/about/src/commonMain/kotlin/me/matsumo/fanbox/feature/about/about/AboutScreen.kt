@@ -19,12 +19,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.matsumo.fanbox.core.common.PixiViewConfig
-import me.matsumo.fanbox.core.model.UserData
+import me.matsumo.fanbox.core.model.BillingReferrer
+import me.matsumo.fanbox.core.model.Destination
+import me.matsumo.fanbox.core.model.Setting
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.about_title
+import me.matsumo.fanbox.core.resources.error_developing_feature
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.about_title
 import me.matsumo.fanbox.core.ui.component.PixiViewTopBar
-import me.matsumo.fanbox.core.ui.error_developing_feature
 import me.matsumo.fanbox.core.ui.extensition.LocalSnackbarHostState
 import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
 import me.matsumo.fanbox.core.ui.extensition.Platform
@@ -39,8 +41,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun AboutRoute(
-    navigateToVersionHistory: () -> Unit,
-    navigateToDonate: () -> Unit,
+    navigateTo: (Destination) -> Unit,
     terminate: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AboutViewModel = koinViewModel(),
@@ -54,23 +55,44 @@ internal fun AboutRoute(
     AsyncLoadContents(
         modifier = modifier,
         screenState = screenState,
+        terminate = { terminate.invoke() },
     ) { uiState ->
         AboutScreen(
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-            userData = uiState.userData,
+            setting = uiState.setting,
             config = uiState.config,
-            onClickGithub = { navigatorExtension.navigateToWebPage("https://github.com/matsumo0922/PixiView-KMP", AboutRoute) },
-            onClickGithubProfile = { navigatorExtension.navigateToWebPage("https://github.com/matsumo0922", AboutRoute) },
-            onClickGithubIssue = { navigatorExtension.navigateToWebPage("https://github.com/matsumo0922/PixiView-KMP/issues/new", AboutRoute) },
-            onClickGitHubContributor = { navigatorExtension.navigateToWebPage("https://github.com/matsumo0922/PixiView-KMP/graphs/contributors", AboutRoute) },
-            onClickDiscord = { scope.launch { toastExtension.show(snackHostState, Res.string.error_developing_feature) } },
-            onClickGooglePlay = { navigatorExtension.navigateToWebPage("https://play.google.com/store/apps/details?id=caios.android.fanbox", AboutRoute) },
-            onClickGooglePlayDeveloper = { navigatorExtension.navigateToWebPage("https://play.google.com/store/apps/developer?id=CAIOS", AboutRoute) },
-            onClickAppStore = { navigatorExtension.navigateToWebPage("https://apps.apple.com/jp/developer/caios/id1563407383", AboutRoute) },
-            onClickAppStoreDeveloper = { navigatorExtension.navigateToWebPage("https://apps.apple.com/jp/developer/caios/id1563407383", AboutRoute) },
-            onClickTwitter = { navigatorExtension.navigateToWebPage("https://twitter.com/matsumo0922", AboutRoute) },
-            onClickVersionHistory = { navigateToVersionHistory.invoke() },
-            onClickDonate = { navigateToDonate.invoke() },
+            onClickGithub = {
+                navigatorExtension.navigateToWebPage("https://github.com/matsumo0922/PixiView-KMP", "")
+            },
+            onClickGithubProfile = {
+                navigatorExtension.navigateToWebPage("https://github.com/matsumo0922", "")
+            },
+            onClickGithubIssue = {
+                navigatorExtension.navigateToWebPage("https://github.com/matsumo0922/PixiView-KMP/issues/new", "")
+            },
+            onClickGitHubContributor = {
+                navigatorExtension.navigateToWebPage("https://github.com/matsumo0922/PixiView-KMP/graphs/contributors", "")
+            },
+            onClickDiscord = {
+                scope.launch { toastExtension.show(snackHostState, Res.string.error_developing_feature) }
+            },
+            onClickGooglePlay = {
+                navigatorExtension.navigateToWebPage("https://play.google.com/store/apps/details?id=caios.android.fanbox", "")
+            },
+            onClickGooglePlayDeveloper = {
+                navigatorExtension.navigateToWebPage("https://play.google.com/store/apps/developer?id=CAIOS", "")
+            },
+            onClickAppStore = {
+                navigatorExtension.navigateToWebPage("https://apps.apple.com/jp/developer/caios/id1563407383", "")
+            },
+            onClickAppStoreDeveloper = {
+                navigatorExtension.navigateToWebPage("https://apps.apple.com/jp/developer/caios/id1563407383", "")
+            },
+            onClickTwitter = {
+                navigatorExtension.navigateToWebPage("https://twitter.com/matsumo0922", "")
+            },
+            onClickVersionHistory = { navigateTo(Destination.VersionHistoryBottomSheet) },
+            onClickDonate = { navigateTo(Destination.BillingPlusBottomSheet(BillingReferrer.ABOUT_DONATE)) },
             onTerminate = terminate,
         )
     }
@@ -79,7 +101,7 @@ internal fun AboutRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AboutScreen(
-    userData: UserData,
+    setting: Setting,
     config: PixiViewConfig,
     onClickGithub: () -> Unit,
     onClickGithubProfile: () -> Unit,
@@ -118,12 +140,12 @@ private fun AboutScreen(
                 start = 24.dp,
                 end = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item {
                 AboutAppSection(
                     modifier = Modifier.fillMaxWidth(),
-                    userData = userData,
+                    setting = setting,
                     config = config,
                     onClickGithub = onClickGithub,
                     onClickDiscord = onClickDiscord,

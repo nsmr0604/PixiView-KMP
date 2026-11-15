@@ -18,14 +18,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Size
-import me.matsumo.fanbox.core.model.fanbox.FanboxPostDetail
-import me.matsumo.fanbox.core.ui.Res
-import me.matsumo.fanbox.core.ui.error_ios_gif_support
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.core.resources.Res
+import me.matsumo.fanbox.core.resources.error_ios_gif_support
 import me.matsumo.fanbox.core.ui.extensition.Platform
 import me.matsumo.fanbox.core.ui.extensition.SimmerPlaceHolder
 import me.matsumo.fanbox.core.ui.extensition.currentPlatform
@@ -34,11 +33,11 @@ import me.matsumo.fanbox.core.ui.theme.center
 import me.matsumo.fanbox.feature.post.image.items.PostImageMenuDialog
 import org.jetbrains.compose.resources.stringResource
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalCoilApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun PostDetailImageItem(
-    item: FanboxPostDetail.ImageItem,
-    onClickImage: (FanboxPostDetail.ImageItem) -> Unit,
+    item: PostDetail.ImageItem,
+    onClickImage: (PostDetail.ImageItem) -> Unit,
     onClickDownload: () -> Unit,
     onClickAllDownload: () -> Unit,
     modifier: Modifier = Modifier,
@@ -89,10 +88,11 @@ internal fun PostDetailImageItem(
         }
     }
 
-    PostImageMenuDialog(
-        isVisible = isShowMenu,
-        onClickDownload = { onClickDownload.invoke() },
-        onClickAllDownload = { onClickAllDownload.invoke() },
-        onDismissRequest = { isShowMenu = false },
-    )
+    if (isShowMenu) {
+        PostImageMenuDialog(
+            onClickDownload = { onClickDownload.invoke() },
+            onClickAllDownload = { onClickAllDownload.invoke() },
+            onDismissRequest = { isShowMenu = false },
+        )
+    }
 }
