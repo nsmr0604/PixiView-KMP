@@ -46,8 +46,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 class PixiViewViewModel(
     private val settingRepository: SettingRepository,
@@ -170,10 +168,11 @@ class PixiViewViewModel(
         }
     }
 
-    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
     fun initPixiViewId() {
         viewModelScope.launch {
-            settingRepository.setPixiViewId(Uuid.random().toString())
+            // CAIOS ID（pixiViewId）は PixiView 独自の診断ログ用 ID で pixiv/FANBOX には不要。
+            // 非公式ビルドでは固定のダミー値を設定し、実機を一意に特定できる値を送らない。
+            settingRepository.setPixiViewId("00000000-0000-0000-0000-000000000000")
         }
     }
 

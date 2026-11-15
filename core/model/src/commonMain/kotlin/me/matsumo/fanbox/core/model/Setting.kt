@@ -115,7 +115,9 @@ data class Setting(
             isHideRestricted = false,
             isAutoImagePreview = false,
             isTestUser = false,
-            isDeveloperMode = false,
+            // 開発モードを既定で ON にする。テスト配布ビルドでは PIN 入力の手間を省くため。
+            // Guest チャンネルが Dev に切り替わる副作用がある点に注意。
+            isDeveloperMode = true,
             // 有料（Plus）機能を既定で ON にする。テスト配布ビルドでは正規の購入確認
             // （RevenueCat）が行われないため、Plus 特典をすべて有効にしておく。
             isPlusMode = true,
