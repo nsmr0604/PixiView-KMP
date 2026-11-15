@@ -39,6 +39,11 @@ val verifyReleaseAdMobIds by tasks.registering {
 
 fun readLocalPropertyOrEnv(key: String): String? = localProperties.getProperty(key) ?: System.getenv(key)
 
+// 署名鍵を持たない環境（CI など）で release APK を作るためのフラグ。
+// -PunsignedApk=true を付けると signingConfig を外して app-release-unsigned.apk を出力する。
+// 配布やインストールには自前での署名が要る。
+val unsignedApkBuild = providers.gradleProperty("unsignedApk").getOrElse("false") == "true"
+
 // Google のテスト用広告ユニット ID は publisher ID が共通しているため、前方一致で判定する
 fun isAdMobTestId(id: String?): Boolean = when {
     id.isNullOrBlank() -> true
@@ -69,7 +74,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (unsignedApkBuild) null else signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

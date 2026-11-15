@@ -1,0 +1,98 @@
+name: Build Unsigned
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android (unsigned APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # リリースビルドは AdMob ID が本物でないと検査に失敗する。無署名の検証用 APK では
+      # 広告を動かさないため、テスト ID 以外の形式のダミー値を入れて検査を通す。
+      - name: Create local.properties
+        run: |
+          cat > local.properties <<'EOF'
+          ADMOB_ANDROID_APP_ID=ca-app-pub-1111111111111111~2222222222
+          ADMOB_ANDROID_BANNER_AD_UNIT_ID=ca-app-pub-1111111111111111/3333333333
+          ADMOB_ANDROID_NATIVE_AD_UNIT_ID=ca-app-pub-1111111111111111/4444444444
+          ADMOB_ANDROID_REWARD_AD_UNIT_ID=ca-app-pub-1111111111111111/5555555555
+          ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID=ca-app-pub-1111111111111111/6666666666
+          EOF
+
+      # プラットフォーム 37.0 の自動インストールに必要な現行ライセンスのハッシュを補う。
+      # ランナーイメージのライセンスファイルが最新版に追いついていない場合の備え。
+      - name: Accept SDK licenses
+        run: |
+          licenseFile="$ANDROID_HOME/licenses/android-sdk-license"
+          hash="24333f8a63b6825ea9c5514f83c2829b004d1fee"
+          grep -qxF "$hash" "$licenseFile" || echo "$hash" >> "$licenseFile"
+
+      # -PunsignedApk=true で signingConfig が外れ、app-release-unsigned.apk が出力される。
+      # 配布やインストールには自前での署名が要る。
+      - name: Build unsigned APK
+        run: ./gradlew :androidApp:assembleRelease -PunsignedApk=true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FANBOX-release-unsigned-apk
+          path: androidApp/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    name: iOS (unsigned IPA)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 署名しないため、証明書や provisioning profile は不要。archive のみ行う。
+      - name: Archive Project
+        run: |
+          xcodebuild archive -project iosApp/iosApp.xcodeproj \
+                             -scheme MainApp \
+                             -sdk iphoneos \
+                             -configuration Release \
+                             -archivePath iosApp.xcarchive \
+                             CODE_SIGNING_ALLOWED=NO
+
+      # 署名なし IPA は、archive の .app を Payload ディレクトリに入れて zip 化するだけで作れる。
+      # App Store へは提出できず、自前の署名を経てからインストールする。
+      - name: Create unsigned IPA
+        run: |
+          mkdir Payload
+          cp -R iosApp.xcarchive/Products/Applications/*.app Payload/
+          zip -r MainApp-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: FANBOX-release-unsigned-ipa
+          path: MainApp-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
