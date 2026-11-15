@@ -54,16 +54,18 @@ jobs:
           hash="24333f8a63b6825ea9c5514f83c2829b004d1fee"
           grep -qxF "$hash" "$licenseFile" || echo "$hash" >> "$licenseFile"
 
-      # -PdebugSignedApk=true でリリース APK を debug.keystore で署名する。
-      # 無署名 APK は実機へインストールできないため。正式リリースは release.keystore で署名し直す。
-      - name: Build APK signed with debug key
-        run: ./gradlew :androidApp:assembleRelease -PdebugSignedApk=true
+      # README-JA の Contribute に従い debug ビルドで配布する。
+      # debug ビルドはリポジトリの debug.keystore で署名され、未設定の AdMob ID には
+      # テスト ID が使われるため、リリースビルドのような ID 検査や追加設定が不要。
+      # RevenueCat のキーは debug でも空だと BillingClient 初期化時にクラッシュするためダミーを注入する。
+      - name: Build debug APK
+        run: ./gradlew :androidApp:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FANBOX-release-apk
-          path: androidApp/build/outputs/apk/release/*.apk
+          name: FANBOX-debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
 
