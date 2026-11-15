@@ -1,4 +1,4 @@
-name: Build Unsigned
+name: Build Distribution
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   android:
-    name: Android (unsigned APK)
+    name: Android (APK)
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -29,7 +29,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # リリースビルドは AdMob ID が本物でないと検査に失敗する。無署名の検証用 APK では
+      # リリースビルドは AdMob ID が本物でないと検査に失敗する。テスト配布用の APK では
       # 広告を動かさないため、テスト ID 以外の形式のダミー値を入れて検査を通す。
       - name: Create local.properties
         run: |
@@ -49,21 +49,21 @@ jobs:
           hash="24333f8a63b6825ea9c5514f83c2829b004d1fee"
           grep -qxF "$hash" "$licenseFile" || echo "$hash" >> "$licenseFile"
 
-      # -PunsignedApk=true で signingConfig が外れ、app-release-unsigned.apk が出力される。
-      # 配布やインストールには自前での署名が要る。
-      - name: Build unsigned APK
-        run: ./gradlew :androidApp:assembleRelease -PunsignedApk=true
+      # -PdebugSignedApk=true でリリース APK を debug.keystore で署名する。
+      # 無署名 APK は実機へインストールできないため。正式リリースは release.keystore で署名し直す。
+      - name: Build APK signed with debug key
+        run: ./gradlew :androidApp:assembleRelease -PdebugSignedApk=true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FANBOX-release-unsigned-apk
+          name: FANBOX-release-apk
           path: androidApp/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
   ios:
-    name: iOS (unsigned IPA)
+    name: iOS (IPA)
     runs-on: macos-latest
     # アーカイブには Kotlin フレームワークのビルドと Firebase / AdMob の
     # SwiftPM 依存の解決・コンパイルが含まれ、30 分では収まらない。
