@@ -89,11 +89,25 @@ jobs:
       # xcodebuild archive 内での依存解決は、ネットワーク不調で無出力のまま
       # ハングして job タイムアウトになることがある。先に単独で解決し、
       # 1 回 10 分で打ち切って 3 回まで再試行する。
+      # macOS ランナーには GNU timeout が無いため、watchdog プロセスで打ち切る。
       - name: Resolve SwiftPM packages
         run: |
+          resolve_once() {
+            xcodebuild -resolvePackageDependencies -project iosApp/iosApp.xcodeproj -scheme iosApp &
+            pid=$!
+            ( sleep 600 && kill -9 "$pid" 2>/dev/null ) &
+            watchdog=$!
+            wait "$pid"
+            status=$?
+            kill "$watchdog" 2>/dev/null
+            wait "$watchdog" 2>/dev/null
+
+            return "$status"
+          }
+
           ok=false
           for attempt in 1 2 3; do
-            if timeout 600 xcodebuild -resolvePackageDependencies -project iosApp/iosApp.xcodeproj -scheme iosApp; then
+            if resolve_once; then
               ok=true
               break
             fi
