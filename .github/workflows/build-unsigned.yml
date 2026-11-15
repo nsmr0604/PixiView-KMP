@@ -29,18 +29,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # リリースビルドは AdMob ID が本物でないと検査に失敗する。テスト配布用の APK では
-      # 広告を動かさないため、テスト ID 以外の形式のダミー値を入れて検査を通す。
+      # debug ビルドでは未設定の AdMob ID に自動でテスト ID が使われるため、ID のダミー注入は不要。
+      # RevenueCat のキーは debug ビルドでも空のまま BillingClient が構築されると起動時に
+      # クラッシュする。テスト配布 APK では課金 API への通信が失敗するだけで、
+      # 呼び出し側は runCatching で握り潰す。
       - name: Create local.properties
         run: |
           cat > local.properties <<'EOF'
-          ADMOB_ANDROID_APP_ID=ca-app-pub-1111111111111111~2222222222
-          ADMOB_ANDROID_BANNER_AD_UNIT_ID=ca-app-pub-1111111111111111/3333333333
-          ADMOB_ANDROID_NATIVE_AD_UNIT_ID=ca-app-pub-1111111111111111/4444444444
-          ADMOB_ANDROID_REWARD_AD_UNIT_ID=ca-app-pub-1111111111111111/5555555555
-          ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID=ca-app-pub-1111111111111111/6666666666
-          # RevenueCat のキーが空のまま BillingClient が構築されると起動時にクラッシュする。
-          # テスト配布 APK では課金 API への通信が失敗するだけで、呼び出し側は runCatching で握り潰す。
+          # RevenueCat の起動クラッシュ対策のダミーキー。
           PURCHASE_ANDROID_API_KEY=goog_dummy0000000000000000000000
           # 開発モードの PIN。
           DEVELOPER_PASSWORD=0000
