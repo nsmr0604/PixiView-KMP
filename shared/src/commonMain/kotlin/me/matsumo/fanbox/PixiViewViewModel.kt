@@ -65,6 +65,16 @@ class PixiViewViewModel(
     private var interstitialPostCloseCount = 0
     private var lastInterstitialShownEpochSeconds = 0L
 
+    init {
+        // debug ビルドでは CAIOS ID（pixiViewId）を常にダミーに上書きする。
+        // 既に保存済みの端末でも置き換わる。実機を一意に特定できる値を送らないため。
+        if (pixiViewConfig.isDebug) {
+            viewModelScope.launch {
+                settingRepository.setPixiViewId("00000000-0000-0000-0000-000000000000")
+            }
+        }
+    }
+
     val screenState = combine(
         listOf(
             settingRepository.setting,

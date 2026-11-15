@@ -65,19 +65,21 @@ buildkonfig {
     exposeObjectWithName = "BuildKonfig"
 
     defaultConfigs {
+        // 設定値の優先順位はローカルプロパティ → 環境変数 → フォールバック → defaultValue。
+        // CI から環境変数でビルド由来のバージョンを上書きできるようにするため。
         fun putBuildConfig(
             key: String,
-            value: String? = null,
+            fallback: String? = null,
             defaultValue: String = "",
         ) {
             val property = localProperties.getProperty(key)
             val env = System.getenv(key)
 
-            buildConfigField(FieldSpec.Type.STRING, key, (value ?: property ?: env ?: defaultValue).replace("\"", ""))
+            buildConfigField(FieldSpec.Type.STRING, key, (property ?: env ?: fallback ?: defaultValue).replace("\"", ""))
         }
 
-        putBuildConfig("VERSION_NAME", libs.versions.versionName.get())
-        putBuildConfig("VERSION_CODE", libs.versions.versionCode.get())
+        putBuildConfig("VERSION_NAME", fallback = libs.versions.versionName.get())
+        putBuildConfig("VERSION_CODE", fallback = libs.versions.versionCode.get())
         putBuildConfig("DEVELOPER_PASSWORD")
         putBuildConfig("PIXIV_CLIENT_ID")
         putBuildConfig("PIXIV_CLIENT_SECRET")

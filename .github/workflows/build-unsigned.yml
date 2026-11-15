@@ -42,6 +42,11 @@ jobs:
           DEVELOPER_PASSWORD=0000
           EOF
 
+          # バージョン表示にビルド由来の情報（Actions の Run 番号と日付）を付加する。
+          # BuildKonfig の VERSION_NAME はローカルプロパティが無い場合に環境変数を使う。
+          base_version=$(grep -m1 '^versionName' gradle/libs.versions.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "VERSION_NAME=${base_version}+actions${GITHUB_RUN_NUMBER}-$(date +%Y%m%d)" >> "$GITHUB_ENV"
+
       # プラットフォーム 37.0 の自動インストールに必要な現行ライセンスのハッシュを補う。
       # ランナーイメージのライセンスファイルが最新版に追いついていない場合の備え。
       - name: Accept SDK licenses
@@ -129,6 +134,11 @@ jobs:
           # 開発モードの PIN。
           DEVELOPER_PASSWORD=0000
           EOF
+
+          # バージョン表示にビルド由来の情報（Actions の Run 番号と日付）を付加する。
+          # BuildKonfig の VERSION_NAME はローカルプロパティが無い場合に環境変数を使う。
+          base_version=$(grep -m1 '^versionName' gradle/libs.versions.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "VERSION_NAME=${base_version}+actions${GITHUB_RUN_NUMBER}-$(date +%Y%m%d)" >> "$GITHUB_ENV"
 
       # secret.plist は実キーを含むため gitignore されているが、Xcode プロジェクトが
       # Resources に含めているため無いと CopyPlistFile でアーカイブが失敗する。
