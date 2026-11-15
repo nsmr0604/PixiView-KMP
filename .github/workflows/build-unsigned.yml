@@ -72,10 +72,11 @@ jobs:
         uses: actions/checkout@v4
 
       # 署名しないため、証明書や provisioning profile は不要。archive のみ行う。
+      # スキームはプロジェクト唯一のターゲット iosApp（共有スキームが無いため自動生成名）。
       - name: Archive Project
         run: |
           xcodebuild archive -project iosApp/iosApp.xcodeproj \
-                             -scheme MainApp \
+                             -scheme iosApp \
                              -sdk iphoneos \
                              -configuration Release \
                              -archivePath iosApp.xcarchive \
