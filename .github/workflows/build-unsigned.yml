@@ -65,7 +65,9 @@ jobs:
   ios:
     name: iOS (unsigned IPA)
     runs-on: macos-latest
-    timeout-minutes: 30
+    # アーカイブには Kotlin フレームワークのビルドと Firebase / AdMob の
+    # SwiftPM 依存の解決・コンパイルが含まれ、30 分では収まらない。
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
