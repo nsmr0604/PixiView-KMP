@@ -39,6 +39,9 @@ jobs:
           ADMOB_ANDROID_NATIVE_AD_UNIT_ID=ca-app-pub-1111111111111111/4444444444
           ADMOB_ANDROID_REWARD_AD_UNIT_ID=ca-app-pub-1111111111111111/5555555555
           ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID=ca-app-pub-1111111111111111/6666666666
+          # RevenueCat のキーが空のまま BillingClient が構築されると起動時にクラッシュする。
+          # テスト配布 APK では課金 API への通信が失敗するだけで、呼び出し側は runCatching で握り潰す。
+          PURCHASE_ANDROID_API_KEY=goog_dummy0000000000000000000000
           EOF
 
       # プラットフォーム 37.0 の自動インストールに必要な現行ライセンスのハッシュを補う。
@@ -72,6 +75,44 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # SwiftPM の依存パッケージをキャッシュして、毎回の再取得とネットワーク頼みの
+      # 解決を減らす。
+      - name: Cache SwiftPM packages
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            swiftpm-${{ runner.os }}-
+
+      # xcodebuild archive 内での依存解決は、ネットワーク不調で無出力のまま
+      # ハングして job タイムアウトになることがある。先に単独で解決し、
+      # 1 回 10 分で打ち切って 3 回まで再試行する。
+      - name: Resolve SwiftPM packages
+        run: |
+          ok=false
+          for attempt in 1 2 3; do
+            if timeout 600 xcodebuild -resolvePackageDependencies -project iosApp/iosApp.xcodeproj -scheme iosApp; then
+              ok=true
+              break
+            fi
+            echo "resolve attempt $attempt failed"
+            sleep 30
+          done
+          if [ "$ok" != "true" ]; then
+            echo "::error::SwiftPM package resolution failed after 3 attempts"
+            exit 1
+          fi
+
+      # RevenueCat のキーが空のまま BillingClient が構築されると起動時にクラッシュするため、
+      # ダミー値を入れておく。IPA は署名なしで直接インストールはできないが、
+      # 自前の署名を経て動かす場合にも起動できるようにしておく。
+      - name: Create local.properties
+        run: |
+          cat > local.properties <<'EOF'
+          PURCHASE_IOS_API_KEY=appl_dummy0000000000000000000000
+          EOF
 
       # 署名しないため、証明書や provisioning profile は不要。archive のみ行う。
       # スキームはプロジェクト唯一のターゲット iosApp（共有スキームが無いため自動生成名）。
