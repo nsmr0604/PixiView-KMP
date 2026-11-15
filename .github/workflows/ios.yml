@@ -1,7 +1,9 @@
 name: Build
 
+# App Store 提出用のパイプライン。push では発火させず、手動実行のみにする。
+# （毎 push の失敗ノイズを避けるため。提出時は Actions から workflow_dispatch で実行する）
 on:
-  push
+  workflow_dispatch
 
 jobs:          
   build:
@@ -13,9 +15,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Archive Project
-        run: |                        
+        run: |
           xcodebuild archive -project iosApp/iosApp.xcodeproj \
-                             -scheme MainApp \
+                             -scheme iosApp \
                              -sdk iphoneos \
                              -configuration Release \
                              -archivePath iosApp.xcarchive \
