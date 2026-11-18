@@ -187,7 +187,7 @@ class DownloadPostsRepositoryImpl(
     private suspend fun resolvePostDirName(postId: PostId, title: String): String? {
         if (!userDataStore.setting.first().isUsePostIdDirectory) return null
 
-        return "【${postId.value}.$title】"
+        return "${postId.value}.$title"
             .replace(Regex("""[\\/:*?"<>|]"""), "_")
             .trimEnd('.', ' ')
             .take(100)

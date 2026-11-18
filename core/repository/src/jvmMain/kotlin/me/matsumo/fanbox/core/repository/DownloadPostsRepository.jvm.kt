@@ -248,7 +248,7 @@ class DownloadPostsRepositoryImpl(
     private suspend fun resolvePostDirName(postId: PostId, title: String): String? {
         if (!userDataStore.setting.first().isUsePostIdDirectory) return null
 
-        return "【${postId.value}.$title】".sanitizeDirName()
+        return "${postId.value}.$title".sanitizeDirName()
     }
 
     /** ファイルパスに使えない文字を置換する。Windows では末尾のドットと空白も無効。 */
