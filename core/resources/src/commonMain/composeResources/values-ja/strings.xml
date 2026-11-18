@@ -295,6 +295,8 @@
     <string name="setting_top_post_directory_description">クリエイターフォルダーの下に投稿IDと記事名からなるフォルダーを作成し、投稿ごとに画像などを保存します。</string>
     <string name="setting_top_save_body">記事本文を保存する</string>
     <string name="setting_top_save_body_description">一括ダウンロード時に記事本文を投稿フォルダーにテキストファイルとして保存します。（PC 版のみ）</string>
+    <string name="setting_top_creator_album">クリエイターごとにアルバムを作成する</string>
+    <string name="setting_top_creator_album_description">保存した画像を写真ライブラリのクリエイター名アルバムに分けて保存します。（iOS 版のみ）</string>
     <string name="setting_account">アカウント</string>
     <string name="setting_account_title">アカウント設定</string>
     <string name="setting_account_description">アカウント名やアイコン変更などを行います。</string>

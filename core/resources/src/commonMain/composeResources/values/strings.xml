@@ -300,6 +300,8 @@
     <string name="setting_top_post_directory_description">Create a folder named with the post ID and title under the creator folder and save the images and files of each post there.</string>
     <string name="setting_top_save_body">Save the post body text</string>
     <string name="setting_top_save_body_description">When bulk downloading a post, save its text in the post folder as a text file. (Desktop only)</string>
+    <string name="setting_top_creator_album">Create an album for each creator</string>
+    <string name="setting_top_creator_album_description">Create a photo library album per creator and save downloaded images into it. (iOS only)</string>
     <string name="setting_account">Account</string>
     <string name="setting_account_title">Account settings</string>
     <string name="setting_account_description">Change your account name, icon, etc.</string>

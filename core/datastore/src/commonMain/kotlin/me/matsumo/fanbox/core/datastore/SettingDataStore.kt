@@ -222,6 +222,20 @@ class SettingDataStore(
         }
     }
 
+    suspend fun setUseCreatorAlbum(isUseCreatorAlbum: Boolean) = withContext(ioDispatcher) {
+        if (setting.first().isUseCreatorAlbum == isUseCreatorAlbum) return@withContext
+
+        SettingsLog.update(
+            propertyName = "isUseCreatorAlbum",
+            oldValue = setting.first().isUseCreatorAlbum.toString(),
+            newValue = isUseCreatorAlbum.toString(),
+        ).send()
+
+        settingPreference.edit {
+            it[booleanPreferencesKey(Setting::isUseCreatorAlbum.name)] = isUseCreatorAlbum
+        }
+    }
+
     suspend fun setFirstLaunchTime(time: Long) = withContext(ioDispatcher) {
         if (setting.first().firstLaunchTime == time) return@withContext
 

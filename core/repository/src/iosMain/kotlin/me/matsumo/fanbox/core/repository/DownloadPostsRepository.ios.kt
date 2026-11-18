@@ -1,5 +1,6 @@
 package me.matsumo.fanbox.core.repository
 
+import io.github.aakira.napier.Napier
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.allocArrayOf
@@ -32,10 +33,19 @@ import platform.Foundation.NSData
 import platform.Foundation.NSFileHandle
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
+import platform.Foundation.NSPredicate
 import platform.Foundation.closeFile
 import platform.Foundation.create
 import platform.Foundation.fileHandleForWritingAtPath
 import platform.Foundation.writeData
+import platform.Photos.PHAssetCollection
+import platform.Photos.PHAssetCollectionChangeRequest
+import platform.Photos.PHAssetCollectionSubtype
+import platform.Photos.PHAssetCollectionType
+import platform.Photos.PHAssetCreationRequest
+import platform.Photos.PHAuthorizationStatus
+import platform.Photos.PHFetchOptions
+import platform.Photos.PHPhotoLibrary
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageWriteToSavedPhotosAlbum
 import kotlin.time.Duration.Companion.milliseconds
@@ -69,15 +79,18 @@ class DownloadPostsRepositoryImpl(
                     continue
                 }
 
+                // クリエイター名の解決とアルバム保存に使う投稿詳細。Image / File の一括ダウンロードでも取得する。
+                val postDetail = runCatching { fanboxRepository.getPostDetail(downloadItems.postId) }.getOrNull()
+
                 val items = when (val type = downloadItems.requestType) {
                     FanboxDownloadItems.RequestType.File -> downloadItems.items
 
                     FanboxDownloadItems.RequestType.Image -> downloadItems.items
 
                     is FanboxDownloadItems.RequestType.WholePost -> {
-                        val postDetail = fanboxRepository.getPostDetail(downloadItems.postId)
-                        val images = postDetail.body.imageItems.map { it.toDownloadItem() }
-                        val files = postDetail.body.fileItems.map { it.toDownloadItem() }
+                        val detail = checkNotNull(postDetail)
+                        val images = detail.body.imageItems.map { it.toDownloadItem() }
+                        val files = detail.body.fileItems.map { it.toDownloadItem() }
 
                         images + if (type.isIgnoreFiles) emptyList() else files
                     }
@@ -101,10 +114,15 @@ class DownloadPostsRepositoryImpl(
 
                 val results = data.awaitAll()
 
+                val albumName = if (userDataStore.setting.first().isUseCreatorAlbum) {
+                    resolveAlbumName(downloadItems.requestType, postDetail)
+                } else {
+                    null
+                }
                 val postDirName = resolvePostDirName(downloadItems.postId, downloadItems.title)
 
                 for ((item, bytes) in results.filterNotNull()) {
-                    saveItem(item, downloadItems.requestType, postDirName, bytes)
+                    saveItem(item, downloadItems.requestType, albumName, postDirName, bytes)
                 }
             }
         }
@@ -222,6 +240,7 @@ class DownloadPostsRepositoryImpl(
     private fun saveItem(
         item: FanboxDownloadItems.Item,
         requestType: FanboxDownloadItems.RequestType,
+        albumName: String?,
         postDirName: String?,
         bytes: ByteArray,
     ) {
@@ -231,7 +250,11 @@ class DownloadPostsRepositoryImpl(
                     val nsData = memScoped { NSData.create(bytes = allocArrayOf(bytes), length = bytes.size.toULong()) }
                     val uiImage = UIImage.imageWithData(nsData)!!
 
-                    UIImageWriteToSavedPhotosAlbum(uiImage, null, null, null)
+                    if (albumName != null) {
+                        saveImageToAlbum(uiImage, albumName)
+                    } else {
+                        UIImageWriteToSavedPhotosAlbum(uiImage, null, null, null)
+                    }
                 }
 
                 FanboxDownloadItems.Item.Type.File -> {
@@ -255,6 +278,63 @@ class DownloadPostsRepositoryImpl(
                 }
             }
         }
+    }
+
+    /** アルバム名。すべてのダウンロードをクリエイターごとのアルバムにまとめる。 */
+    private fun resolveAlbumName(
+        requestType: FanboxDownloadItems.RequestType,
+        postDetail: PostDetail?,
+    ): String = when (requestType) {
+        is FanboxDownloadItems.RequestType.Image, is FanboxDownloadItems.RequestType.File -> postDetail?.user?.name
+
+        is FanboxDownloadItems.RequestType.WholePost -> requestType.post?.user?.name ?: postDetail?.user?.name
+    }.sanitizeAlbumName()
+
+    /** アルバム名に使えない文字を置換する。 */
+    private fun String?.sanitizeAlbumName(): String = this
+        ?.replace(Regex("""[\\/:*?"<>|]"""), "_")
+        ?.trimEnd('.', ' ')
+        ?.takeIf { it.isNotBlank() }
+        ?.take(100)
+        ?: "UnknownCreator"
+
+    /** クリエイター名のアルバムに画像を保存する。アルバムがなければ作成する。 */
+    private fun saveImageToAlbum(image: UIImage, albumName: String) {
+        PHPhotoLibrary.requestAuthorization { status ->
+            if (status == PHAuthorizationStatus.Denied || status == PHAuthorizationStatus.Restricted) return@requestAuthorization
+
+            PHPhotoLibrary.sharedPhotoLibrary().performChanges(
+                {
+                    val album = fetchAlbum(albumName)
+                        ?: PHAssetCollectionChangeRequest.creationRequestForAssetCollectionWithTitle(albumName)
+                            .placeholderForCreatedAssetCollection
+
+                    val asset = PHAssetCreationRequest.creationRequestForAssetFromImage(image)?.placeholderForCreatedAsset
+
+                    if (album != null && asset != null) {
+                        PHAssetCollectionChangeRequest.forAssetCollection(album).addAssets(listOf(asset))
+                    }
+                },
+                { error ->
+                    if (error != null) {
+                        Napier.e { "Failed to save image to album: ${error.localizedDescription}" }
+                    }
+                },
+            )
+        }
+    }
+
+    /** 指定名のアルバムを検索する。performChanges の change block 内で呼ぶこと。 */
+    private fun fetchAlbum(albumName: String): PHAssetCollection? {
+        val options = PHFetchOptions().apply {
+            predicate = NSPredicate(format = "title == %@", albumName)
+        }
+
+        return PHAssetCollection.fetchAssetCollectionsWithType(
+            PHAssetCollectionType.Album,
+            PHAssetCollectionSubtype.AlbumRegular,
+            options,
+        ).firstObject as? PHAssetCollection
     }
 
     /** 投稿ごとのサブディレクトリ名。オプションが無効な場合は null を返す。 */

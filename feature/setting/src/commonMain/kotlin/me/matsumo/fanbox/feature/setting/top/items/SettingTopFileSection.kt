@@ -10,6 +10,8 @@ import me.matsumo.fanbox.core.resources.Res
 import me.matsumo.fanbox.core.resources.setting_top_file
 import me.matsumo.fanbox.core.resources.setting_top_file_directory
 import me.matsumo.fanbox.core.resources.setting_top_file_directory_description
+import me.matsumo.fanbox.core.resources.setting_top_creator_album
+import me.matsumo.fanbox.core.resources.setting_top_creator_album_description
 import me.matsumo.fanbox.core.resources.setting_top_file_type
 import me.matsumo.fanbox.core.resources.setting_top_file_type_description
 import me.matsumo.fanbox.core.resources.setting_top_post_directory
@@ -28,6 +30,7 @@ internal fun SettingTopFileSection(
     onClickDownloadFileType: (DownloadFileType) -> Unit,
     onClickUsePostIdDirectory: (Boolean) -> Unit,
     onClickSavePostBody: (Boolean) -> Unit,
+    onClickUseCreatorAlbum: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -69,6 +72,17 @@ internal fun SettingTopFileSection(
                 description = Res.string.setting_top_save_body_description,
                 value = setting.isSavePostBody,
                 onValueChange = onClickSavePostBody,
+            )
+        }
+
+        // クリエイター別アルバム保存は iOS 専用機能
+        if (currentPlatform == Platform.IOS) {
+            SettingSwitchItem(
+                modifier = Modifier.fillMaxWidth(),
+                title = Res.string.setting_top_creator_album,
+                description = Res.string.setting_top_creator_album_description,
+                value = setting.isUseCreatorAlbum,
+                onValueChange = onClickUseCreatorAlbum,
             )
         }
     }

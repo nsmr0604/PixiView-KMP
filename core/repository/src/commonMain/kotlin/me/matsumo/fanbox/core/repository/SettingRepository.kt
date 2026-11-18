@@ -32,6 +32,7 @@ interface SettingRepository {
     suspend fun setPostSaveDirectory(directory: String)
     suspend fun setUsePostIdDirectory(isUsePostIdDirectory: Boolean)
     suspend fun setSavePostBody(isSavePostBody: Boolean)
+    suspend fun setUseCreatorAlbum(isUseCreatorAlbum: Boolean)
     suspend fun setFirstLaunchTime(time: Long)
     suspend fun setUseDynamicColor(useDynamicColor: Boolean)
     suspend fun setUseAppLock(isAppLock: Boolean)
@@ -102,6 +103,10 @@ class SettingRepositoryImpl(private val settingDataStore: SettingDataStore) : Se
 
     override suspend fun setSavePostBody(isSavePostBody: Boolean) {
         settingDataStore.setSavePostBody(isSavePostBody)
+    }
+
+    override suspend fun setUseCreatorAlbum(isUseCreatorAlbum: Boolean) {
+        settingDataStore.setUseCreatorAlbum(isUseCreatorAlbum)
     }
 
     override suspend fun setFirstLaunchTime(time: Long) {

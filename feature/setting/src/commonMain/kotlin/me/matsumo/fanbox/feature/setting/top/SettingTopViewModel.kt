@@ -88,6 +88,12 @@ class SettingTopViewModel(
         }
     }
 
+    fun setUseCreatorAlbum(isUseCreatorAlbum: Boolean) {
+        viewModelScope.launch {
+            settingRepository.setUseCreatorAlbum(isUseCreatorAlbum)
+        }
+    }
+
     fun setFollowTabDefaultHome(isFollowTabDefaultHome: Boolean) {
         viewModelScope.launch {
             settingRepository.setFollowTabDefaultHome(isFollowTabDefaultHome)
