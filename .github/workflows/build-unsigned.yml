@@ -277,21 +277,17 @@ jobs:
           base_version=$(grep -m1 '^versionName' gradle/libs.versions.toml | sed 's/.*"\(.*\)".*/\1/')
           echo "VERSION_NAME=${base_version}+actions${GITHUB_RUN_NUMBER}-$(date +%Y%m%d)" >> "$GITHUB_ENV"
 
-      # 配布はインストーラーではなくポータブルな zip（展開して実行できる）。
-      # createDistributable の成果物を zip 化する。
+      # 配布は実行ファイル形式（exe / msi インストーラー）。
+      # packageDistributionForCurrentOS の成果物をそのまま artifact 化する。
       - name: Build desktop distribution
-        run: ./gradlew :desktopApp:createDistributable
-
-      - name: Zip desktop distribution
-        shell: pwsh
-        run: |
-          $app = Get-ChildItem desktopApp/build/compose/binaries/main/app -Directory | Select-Object -First 1
-          Compress-Archive -Path "$($app.FullName)/*" -DestinationPath "desktopApp/build/PixiView-desktop-windows.zip"
+        run: ./gradlew :desktopApp:packageDistributionForCurrentOS
 
       - name: Upload desktop distribution
         uses: actions/upload-artifact@v4
         with:
           name: PixiView-desktop-windows
-          path: desktopApp/build/PixiView-desktop-windows.zip
+          path: |
+            desktopApp/build/compose/binaries/main/exe/*.exe
+            desktopApp/build/compose/binaries/main/msi/*.msi
           if-no-files-found: error
           retention-days: 14
