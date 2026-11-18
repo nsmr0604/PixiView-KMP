@@ -46,8 +46,16 @@ compose.desktop {
         mainClass = "me.matsumo.fanbox.desktop.MainKt"
 
         nativeDistributions {
-            // 配布は createDistributable で作るポータブルディレクトリを zip 化して行う。
-            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+            // 配布は実行ファイル形式。packageDistributionForCurrentOS が
+            // 実行環境の OS に対応するフォーマットだけをビルドする。
+            // Windows: msi / exe、macOS: dmg、Linux: deb / AppImage
+            targetFormats(
+                TargetFormat.Msi,
+                TargetFormat.Exe,
+                TargetFormat.Dmg,
+                TargetFormat.Deb,
+                TargetFormat.AppImage,
+            )
 
             // 非公式ビルドであることを明示する（pixiv API 側の identity とは無関係）。
             packageName = "PixiView-unofficial"

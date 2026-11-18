@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - feat/unofficial-build
       - master
 
 concurrency:
@@ -115,7 +116,7 @@ jobs:
           retention-days: 14
 
   ios:
-    name: iOS (IPA)
+    name: iOS / iPadOS (IPA)
     runs-on: macos-latest
     # アーカイブには Kotlin フレームワークのビルドと Firebase / AdMob の
     # SwiftPM 依存の解決・コンパイルが含まれ、30 分では収まらない。
@@ -236,13 +237,37 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # Windows 向け Compose Desktop ビルド（非公式）。
+  # PC 向け Compose Desktop ビルド（非公式）。
+  # Windows / macOS / Linux の 3 プラットフォームをマトリクスでビルドし、
+  # それぞれの OS に対応するインストーラー形式（msi/exe、dmg、deb/AppImage）を出す。
   # fankt fork は mavenLocal artifact から参照するため、認証情報は不要。
   desktop:
-    name: Desktop (Windows)
-    runs-on: windows-latest
+    name: Desktop (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     needs: fankt-maven
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            artifact: PixiView-desktop-windows
+            patterns: |
+              desktopApp/build/compose/binaries/main/exe/*.exe
+              desktopApp/build/compose/binaries/main/msi/*.msi
+          - os: macos-latest
+            name: macOS
+            artifact: PixiView-desktop-macos
+            patterns: |
+              desktopApp/build/compose/binaries/main/dmg/*.dmg
+          - os: ubuntu-latest
+            name: Linux
+            artifact: PixiView-desktop-linux
+            patterns: |
+              desktopApp/build/compose/binaries/main/deb/*.deb
+              desktopApp/build/compose/binaries/main/appimage/*.AppImage
 
     steps:
       - name: Checkout
@@ -277,17 +302,14 @@ jobs:
           base_version=$(grep -m1 '^versionName' gradle/libs.versions.toml | sed 's/.*"\(.*\)".*/\1/')
           echo "VERSION_NAME=${base_version}+actions${GITHUB_RUN_NUMBER}-$(date +%Y%m%d)" >> "$GITHUB_ENV"
 
-      # 配布は実行ファイル形式（exe / msi インストーラー）。
-      # packageDistributionForCurrentOS の成果物をそのまま artifact 化する。
+      # packageDistributionForCurrentOS が実行環境の OS に対応するインストーラーをビルドする。
       - name: Build desktop distribution
         run: ./gradlew :desktopApp:packageDistributionForCurrentOS
 
       - name: Upload desktop distribution
         uses: actions/upload-artifact@v4
         with:
-          name: PixiView-desktop-windows
-          path: |
-            desktopApp/build/compose/binaries/main/exe/*.exe
-            desktopApp/build/compose/binaries/main/msi/*.msi
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.patterns }}
           if-no-files-found: error
           retention-days: 14
