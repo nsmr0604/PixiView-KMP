@@ -2,6 +2,7 @@
 
 plugins {
     id("pixiview.primitive.kmp.common")
+    id("pixiview.primitive.kmp.jvm")
     id("pixiview.primitive.android.library")
     id("pixiview.primitive.kmp.android")
     id("pixiview.primitive.kmp.ios")
@@ -34,6 +35,10 @@ kotlin {
         // fankt 0.1.0 は Ktor を implementation で持つため、HTTP エンジンの提供は利用側の責務に
         // なる。ソース上の参照は無いが、外すと実行時にエンジンが見つからず通信できない。
         androidMain.dependencies {
+            api(libs.ktor.okhttp)
+        }
+
+        jvmMain.dependencies {
             api(libs.ktor.okhttp)
         }
 

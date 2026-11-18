@@ -30,11 +30,17 @@ class BillingClient(val pixiViewConfig: PixiViewConfig, val ioDispatcher: Corout
     private val planCache = mutableMapOf<BillingPlan.Type, StoreProduct>()
 
     init {
-        Purchases.logLevel = LogLevel.DEBUG
-        Purchases.configure(pixiViewConfig.purchaseApiKey.orEmpty())
+        // 非公式(debug)ビルドでは RevenueCat に接続しない。キーが空のまま configure すると起動時に落ちるため
+        if (!pixiViewConfig.isDebug) {
+            Purchases.logLevel = LogLevel.DEBUG
+            Purchases.configure(pixiViewConfig.purchaseApiKey.orEmpty())
+        }
     }
 
     suspend fun getPlusStatus(): BillingPlusStatus = withContext(ioDispatcher) {
+        // 非公式(debug)ビルドでは正規の購入確認を行わず、Plus 特典をすべて有効として扱う
+        if (pixiViewConfig.isDebug) return@withContext unofficialPlusStatus(BillingPlan.Type.UNKNOWN)
+
         val customerInfo = Purchases.sharedInstance.awaitCustomerInfo()
         val availablePackages = getAvailablePackages()
 
@@ -42,6 +48,9 @@ class BillingClient(val pixiViewConfig: PixiViewConfig, val ioDispatcher: Corout
     }
 
     suspend fun purchase(type: BillingPlan.Type): BillingPurchaseResult = withContext(ioDispatcher) {
+        // 非公式(debug)ビルドでは購入処理を行わず、購入成功として振る舞う
+        if (pixiViewConfig.isDebug) return@withContext BillingPurchaseResult.Success(unofficialPlusStatus(type))
+
         val product = planCache[type] ?: return@withContext BillingPurchaseResult.Failure("product_not_found")
         val purchase = suspendRunCatching { Purchases.sharedInstance.awaitPurchase(product) }.getOrElse { throwable ->
             Napier.w(throwable) { "Failed to purchase $type." }
@@ -57,6 +66,9 @@ class BillingClient(val pixiViewConfig: PixiViewConfig, val ioDispatcher: Corout
     }
 
     suspend fun restore(): BillingPlusStatus = withContext(ioDispatcher) {
+        // 非公式(debug)ビルドでは復元処理を行わず、常に Plus 有効の状態を返す
+        if (pixiViewConfig.isDebug) return@withContext unofficialPlusStatus(BillingPlan.Type.UNKNOWN)
+
         val customerInfo = suspendCancellableCoroutine<CustomerInfo?> { continuation ->
             Purchases.sharedInstance.restorePurchases(
                 onSuccess = {
@@ -75,6 +87,9 @@ class BillingClient(val pixiViewConfig: PixiViewConfig, val ioDispatcher: Corout
     }
 
     suspend fun getPlans() = withContext(ioDispatcher) {
+        // 非公式(debug)ビルドでは RevenueCat から offerings を取得しないため、擬似プランを返す
+        if (pixiViewConfig.isDebug) return@withContext unofficialPlans()
+
         val offerings = Purchases.sharedInstance.awaitOfferings()
         val current = offerings.current
 
@@ -138,6 +153,33 @@ class BillingClient(val pixiViewConfig: PixiViewConfig, val ioDispatcher: Corout
         willRenew = false,
         unsubscribeDetectedAtMillis = null,
         planType = BillingPlan.Type.UNKNOWN,
+    )
+
+    /** 非公式(debug)ビルドで使う、常に Plus 有効な擬似の利用状態。 */
+    private fun unofficialPlusStatus(planType: BillingPlan.Type): BillingPlusStatus = BillingPlusStatus(
+        isActive = true,
+        isTrial = false,
+        willRenew = true,
+        unsubscribeDetectedAtMillis = null,
+        planType = planType,
+    )
+
+    /** 非公式(debug)ビルドのペイウォール UI を動かすための擬似プラン。購入処理は実行されない。 */
+    private fun unofficialPlans(): List<BillingPlan> = listOf(
+        BillingPlan(
+            id = "unofficial-monthly",
+            price = 500_000_000L,
+            formattedPrice = "¥500",
+            type = BillingPlan.Type.MONTHLY,
+            trialPeriod = null,
+        ),
+        BillingPlan(
+            id = "unofficial-annual",
+            price = 4_800_000_000L,
+            formattedPrice = "¥4,800",
+            type = BillingPlan.Type.ANNUAL,
+            trialPeriod = null,
+        ),
     )
 
     private fun StoreProduct.getTrialPeriod(): BillingTrialPeriod? {

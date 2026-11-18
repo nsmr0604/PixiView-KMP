@@ -26,7 +26,8 @@ object LogConfigurator : KoinComponent {
     }
 
     fun send(logCategory: LogCategory) {
-        requireNotNull(filter) { "LogConfigurator is not configured" }
+        // configure 前の送信（起動直後の CAIOS ID ダミー書き込みなど）は破棄する。
+        val filter = filter ?: return
 
         val log = buildJsonObject {
             for (key in logCategory.properties.keys) {

@@ -70,9 +70,9 @@ android {
     androidComponents {
         onVariants {
             val appName = when (it.buildType) {
-                "debug" -> "FANBOX Debug"
-                "billing" -> "FANBOX Billing"
-                else -> "FANBOX"
+                "debug" -> "PixiView-unofficial"
+                "billing" -> "PixiView-unofficial Billing"
+                else -> "PixiView-unofficial"
             }
 
             it.manifestPlaceholders.apply {

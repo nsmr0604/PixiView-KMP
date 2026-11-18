@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:561281916572:android:925776ddd5d210faab1759",
         "android_client_info": {
-          "package_name": "caios.android.fanbox"
+          "package_name": "me.matsumo.fanbox.unofficial"
         }
       },
       "oauth_client": [],
@@ -29,7 +29,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:561281916572:android:85a0c0e2e341d0fdab1759",
         "android_client_info": {
-          "package_name": "caios.android.fanbox.debug"
+          "package_name": "me.matsumo.fanbox.unofficial.debug"
         }
       },
       "oauth_client": [],

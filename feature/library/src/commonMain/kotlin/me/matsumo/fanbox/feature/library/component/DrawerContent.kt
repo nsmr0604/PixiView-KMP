@@ -54,7 +54,7 @@ import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import kotlinx.coroutines.launch
-import me.matsumo.fanbox.core.model.BillingReferrer
+// import me.matsumo.fanbox.core.model.BillingReferrer
 import me.matsumo.fanbox.core.model.Destination
 import me.matsumo.fanbox.core.model.Setting
 import me.matsumo.fanbox.core.resources.Res
@@ -219,12 +219,13 @@ fun DrawerContent(
                 .fillMaxWidth(),
         )
 
-        NavigationDrawerPlusItem(
-            state = state,
-            isPlusMode = setting?.isPlusMode == true,
-            isDeveloperMode = setting?.isDeveloperMode == true,
-            onClick = { navigateTo(Destination.BillingPlusBottomSheet(BillingReferrer.DRAWER)) },
-        )
+        // 非公式ビルドでは Plus 誘導（宣伝）を表示しない
+//        NavigationDrawerPlusItem(
+//            state = state,
+//            isPlusMode = setting?.isPlusMode == true,
+//            isDeveloperMode = setting?.isDeveloperMode == true,
+//            onClick = { navigateTo(Destination.BillingPlusBottomSheet(BillingReferrer.DRAWER)) },
+//        )
     }
 }
 

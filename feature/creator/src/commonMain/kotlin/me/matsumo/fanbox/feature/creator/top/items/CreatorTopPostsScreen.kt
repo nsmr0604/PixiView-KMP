@@ -47,7 +47,7 @@ import me.matsumo.fanbox.core.model.fanbox.CreatorId
 import me.matsumo.fanbox.core.model.fanbox.Post
 import me.matsumo.fanbox.core.model.fanbox.PostId
 import me.matsumo.fanbox.core.model.fanbox.Tag
-import me.matsumo.fanbox.core.ui.ads.NativeAdView
+// import me.matsumo.fanbox.core.ui.ads.NativeAdView
 import me.matsumo.fanbox.core.ui.component.PostGridItem
 import me.matsumo.fanbox.core.ui.component.PostItem
 import me.matsumo.fanbox.core.ui.extensition.FadePlaceHolder
@@ -168,8 +168,9 @@ private fun PagingItems(
             }
         }
 
+        // 非公式ビルドでは広告を表示しないため、広告スロットを挿入しない
         items(
-            count = pagingAdapter.itemCount + if (setting.hasPrivilege) 0 else (pagingAdapter.itemCount / adInterval),
+            count = pagingAdapter.itemCount,
             key = { index ->
                 creatorPostItemKey(
                     pagingAdapter = pagingAdapter,
@@ -180,13 +181,13 @@ private fun PagingItems(
                 )
             },
         ) { index ->
-            if ((index + adOffset) % adInterval == 0 && !setting.hasPrivilege) {
-                NativeAdView(
-                    modifier = Modifier.fillMaxSize(),
-                    key = "creator-$index",
-                )
-            } else {
-                pagingAdapter[if (setting.hasPrivilege) index else index - ((index + adOffset) / adInterval)]?.let { post ->
+//            if ((index + adOffset) % adInterval == 0 && !setting.hasPrivilege) {
+//                NativeAdView(
+//                    modifier = Modifier.fillMaxSize(),
+//                    key = "creator-$index",
+//                )
+//            } else {
+                pagingAdapter[index]?.let { post ->
                     if (isGridMode) {
                         PostGridItem(
                             modifier = Modifier.fillMaxWidth(),
@@ -213,7 +214,7 @@ private fun PagingItems(
                         )
                     }
                 }
-            }
+//            }
         }
 
         if (pagingAdapter.loadState.append is LoadState.Error) {
@@ -319,7 +320,7 @@ private fun creatorPostItemKey(
     // 同じ投稿がページ境界に現れても key が衝突しないよう index を併用する。
     hasPrivilege -> pagingAdapter.itemKey { "${it.id.value}-$index" }(index)
 
-    (index + adOffset) % adInterval == 0 -> "ad-$index"
+//    (index + adOffset) % adInterval == 0 -> "ad-$index"
 
-    else -> pagingAdapter.itemKey { "${it.id.value}-$index" }(index - ((index + adOffset) / adInterval))
+    else -> pagingAdapter.itemKey { "${it.id.value}-$index" }(index)
 }

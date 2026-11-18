@@ -11,14 +11,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  android:
-    name: Android (APK)
+  # fankt fork（JVM 対応版）をビルドして ~/.m2 に publish し、
+  # 後続ジョブへ artifact 経由で配る。GitHub Packages は使わず、
+  # 認証情報の管理を不要にしている。
+  fankt-maven:
+    name: fankt (mavenLocal)
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
+      - name: Checkout fankt fork
+        uses: actions/checkout@v4
+        with:
+          repository: nsmr0604/fankt
+          ref: main
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # iOS の klib は Linux でもコンパイルできる（リンクは不要）。
+      - name: Publish fankt to mavenLocal
+        run: ./gradlew :fankt:fanbox-core:publishToMavenLocal :fankt:fanbox:publishToMavenLocal :fankt:fanbox-persistence-room:publishToMavenLocal
+
+      - name: Upload mavenLocal artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fankt-maven-local
+          path: ~/.m2/repository/me/matsumo
+          if-no-files-found: error
+          retention-days: 1
+
+  android:
+    name: Android (APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: fankt-maven
+
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Restore fankt mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: fankt-maven-local
+          path: ~/.m2/repository/me/matsumo
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -76,10 +119,17 @@ jobs:
     # アーカイブには Kotlin フレームワークのビルドと Firebase / AdMob の
     # SwiftPM 依存の解決・コンパイルが含まれ、30 分では収まらない。
     timeout-minutes: 90
+    needs: fankt-maven
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Restore fankt mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: fankt-maven-local
+          path: ~/.m2/repository/me/matsumo
 
       # SwiftPM の依存パッケージをキャッシュして、毎回の再取得とネットワーク頼みの
       # 解決を減らす。
@@ -182,5 +232,65 @@ jobs:
         with:
           name: FANBOX-release-unsigned-ipa
           path: MainApp-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  # Windows 向け Compose Desktop ビルド（非公式）。
+  # fankt fork は mavenLocal artifact から参照するため、認証情報は不要。
+  desktop:
+    name: Desktop (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    needs: fankt-maven
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # download-artifact は path 直下にファイルを展開するため、~/.m2 の構造を再現する。
+      - name: Restore fankt mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: fankt-maven-local
+          path: ~/.m2/repository/me/matsumo
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Create local.properties
+        shell: bash
+        run: |
+          cat > local.properties <<'EOF'
+          # RevenueCat の起動クラッシュ対策のダミーキー。
+          PURCHASE_ANDROID_API_KEY=goog_dummy0000000000000000000000
+          # 開発モードの PIN。
+          DEVELOPER_PASSWORD=0000
+          EOF
+
+          base_version=$(grep -m1 '^versionName' gradle/libs.versions.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "VERSION_NAME=${base_version}+actions${GITHUB_RUN_NUMBER}-$(date +%Y%m%d)" >> "$GITHUB_ENV"
+
+      # 配布はインストーラーではなくポータブルな zip（展開して実行できる）。
+      # createDistributable の成果物を zip 化する。
+      - name: Build desktop distribution
+        run: ./gradlew :desktopApp:createDistributable
+
+      - name: Zip desktop distribution
+        shell: pwsh
+        run: |
+          $app = Get-ChildItem desktopApp/build/compose/binaries/main/app -Directory | Select-Object -First 1
+          Compress-Archive -Path "$($app.FullName)/*" -DestinationPath "desktopApp/build/PixiView-desktop-windows.zip"
+
+      - name: Upload desktop distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: PixiView-desktop-windows
+          path: desktopApp/build/PixiView-desktop-windows.zip
           if-no-files-found: error
           retention-days: 14

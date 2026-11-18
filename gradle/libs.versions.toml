@@ -58,7 +58,7 @@ gms = "4.5.0"
 koin = "4.2.2"
 
 # matsumo
-fankt = "0.2.4"
+fankt = "0.2.6-jvm1"
 
 # security
 ksafe = "3.3.0"
@@ -71,6 +71,7 @@ ktor = "3.6.1"
 coil3 = "3.6.3"
 ksoup = "0.2.6"
 composeWebView = "2.0.3"
+kcef = "2024.04.20.4"
 composeRichEditor = "1.2.1"
 autolink = "2.0.2"
 windowSize = "0.5.0"
@@ -232,6 +233,7 @@ coil3-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil3" }
 ksoup = { module = "com.fleeksoft.ksoup:ksoup", version.ref = "ksoup" }
 unifile = { module = "com.github.tachiyomiorg:unifile", version = "17bec43" }
 webview-compose = { module = "io.github.kevinnzou:compose-webview-multiplatform", version.ref = "composeWebView" }
+kcef = { module = "dev.datlag:kcef", version.ref = "kcef" }
 rich-editor = { module = "com.mohamedrejeb.richeditor:richeditor-compose", version.ref = "composeRichEditor" }
 autolink = { module = "sh.calvin.autolinktext:autolinktext", version.ref = "autolink" }
 window-size = { module = "dev.chrisbanes.material3:material3-window-size-class-multiplatform", version.ref = "windowSize" }

@@ -264,6 +264,9 @@ private fun BillingRetentionButtonSection(
 private fun Platform.subscriptionManagementUrl(): String = when (this) {
     Platform.Android -> ANDROID_SUBSCRIPTION_MANAGEMENT_URL
     Platform.IOS -> IOS_SUBSCRIPTION_MANAGEMENT_URL
+
+    // Desktop では課金機能が無効のため、このダイアログ自体が表示されない。
+    Platform.Desktop -> error("Desktop has no subscription management page")
 }
 
 /** リテンション BottomSheet を理由付きで閉じる。 */

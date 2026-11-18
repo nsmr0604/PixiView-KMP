@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.konan.properties.Properties
 
 plugins {
     id("pixiview.primitive.kmp.common")
+    id("pixiview.primitive.kmp.jvm")
     id("pixiview.primitive.android.library")
     id("pixiview.primitive.kmp.compose")
     id("pixiview.primitive.kmp.android")

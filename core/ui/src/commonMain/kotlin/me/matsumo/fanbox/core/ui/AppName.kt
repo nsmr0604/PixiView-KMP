@@ -1,13 +1,5 @@
 package me.matsumo.fanbox.core.ui
 
-import me.matsumo.fanbox.core.ui.extensition.Platform
-import me.matsumo.fanbox.core.ui.extensition.currentPlatform
-
+// 元のアプリと区別できるよう、非公式ビルドでは全プラットフォームで同一の名称を使う
 val appName: String
-    get() {
-        if (currentPlatform == Platform.Android) {
-            return "FANBOX Viewer"
-        } else {
-            return "FanViewer"
-        }
-    }
+    get() = "PixiView-unofficial"

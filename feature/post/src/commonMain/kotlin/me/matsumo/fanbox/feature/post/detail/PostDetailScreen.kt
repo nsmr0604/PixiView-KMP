@@ -90,15 +90,15 @@ import me.matsumo.fanbox.core.resources.queue_added_action
 import me.matsumo.fanbox.core.resources.reveal_post_detail_translate
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
 import me.matsumo.fanbox.core.ui.LazyPagingItemsLoadContents
-import me.matsumo.fanbox.core.ui.ads.BannerAdView
-import me.matsumo.fanbox.core.ui.ads.NativeAdView
+// import me.matsumo.fanbox.core.ui.ads.BannerAdView
+// import me.matsumo.fanbox.core.ui.ads.NativeAdView
 import me.matsumo.fanbox.core.ui.appName
 import me.matsumo.fanbox.core.ui.extensition.FadePlaceHolder
 import me.matsumo.fanbox.core.ui.extensition.NavigatorExtension
 import me.matsumo.fanbox.core.ui.extensition.OverlayText
-import me.matsumo.fanbox.core.ui.extensition.Platform
+// import me.matsumo.fanbox.core.ui.extensition.Platform
 import me.matsumo.fanbox.core.ui.extensition.ToastExtension
-import me.matsumo.fanbox.core.ui.extensition.currentPlatform
+// import me.matsumo.fanbox.core.ui.extensition.currentPlatform
 import me.matsumo.fanbox.core.ui.extensition.fanboxHeader
 import me.matsumo.fanbox.core.ui.extensition.isNullOrEmpty
 import me.matsumo.fanbox.core.ui.extensition.marquee
@@ -165,11 +165,12 @@ internal fun PostDetailRoute(
                         .shadow(8.dp)
                         .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
                 ) {
-                    if (!uiState.setting.hasPrivilege) {
-                        BannerAdView(
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
+                    // 非公式ビルドでは広告を表示しない
+//                    if (!uiState.setting.hasPrivilege) {
+//                        BannerAdView(
+//                            modifier = Modifier.fillMaxWidth(),
+//                        )
+//                    }
 
                     PostDetailBottomBar(
                         modifier = Modifier.fillMaxWidth(),
@@ -512,17 +513,18 @@ private fun PostDetailScreen(
                 onClickDownloadImages = onClickDownloadImages,
             )
 
-            // Android は NativeAds なので下部に置く
-            if (!setting.hasPrivilege && currentPlatform == Platform.Android) {
-                item {
-                    NativeAdView(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, top = 16.dp)
-                            .fillMaxWidth(),
-                        key = "post-detail-${creatorDetail.creatorId.value}",
-                    )
-                }
-            }
+            // 非公式ビルドでは広告を表示しない
+//            // Android は NativeAds なので下部に置く
+//            if (!setting.hasPrivilege && currentPlatform == Platform.Android) {
+//                item {
+//                    NativeAdView(
+//                        modifier = Modifier
+//                            .padding(horizontal = 16.dp, top = 16.dp)
+//                            .fillMaxWidth(),
+//                        key = "post-detail-${creatorDetail.creatorId.value}",
+//                    )
+//                }
+//            }
 
             item {
                 PostDetailCreatorSection(

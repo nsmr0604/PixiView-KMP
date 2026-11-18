@@ -102,7 +102,8 @@ class MainActivity :
         // なり、Reward / Native 広告のロードも発生しない。
         // initAdsSdk()
         startService(Intent(this, DownloadPostService::class.java))
-        collectReviewRequest()
+        // 非公式ビルドではアプリ内レビュー（宣伝）を依頼しない
+        // collectReviewRequest()
     }
 
     override fun onResume() {
@@ -131,30 +132,31 @@ class MainActivity :
         }
     }
 
-    private fun collectReviewRequest() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.reviewRequest.collect { requestReview() }
-            }
-        }
-    }
-
-    // 表示の頻度は Play 側の割り当てに任せ、アプリ側では回数を制限しない
-    private suspend fun requestReview() {
-        val reviewManager = ReviewManagerFactory.create(this)
-        val reviewInfoResult = suspendRunCatching { reviewManager.requestReview() }
-
-        ReviewsLog.requestReview(reviewInfoResult.isSuccess).send()
-
-        val reviewInfo = reviewInfoResult.getOrElse { throwable ->
-            Napier.w(throwable) { "Failed to request in-app review." }
-            return
-        }
-
-        suspendRunCatching { reviewManager.launchReview(this, reviewInfo) }
-            .onSuccess { ReviewsLog.reviewed().send() }
-            .onFailure { throwable -> Napier.w(throwable) { "Failed to launch in-app review." } }
-    }
+    // 非公式ビルドではアプリ内レビュー（宣伝）を依頼しない
+//    private fun collectReviewRequest() {
+//        lifecycleScope.launch {
+//            repeatOnLifecycle(Lifecycle.State.STARTED) {
+//                viewModel.reviewRequest.collect { requestReview() }
+//            }
+//        }
+//    }
+//
+//    // 表示の頻度は Play 側の割り当てに任せ、アプリ側では回数を制限しない
+//    private suspend fun requestReview() {
+//        val reviewManager = ReviewManagerFactory.create(this)
+//        val reviewInfoResult = suspendRunCatching { reviewManager.requestReview() }
+//
+//        ReviewsLog.requestReview(reviewInfoResult.isSuccess).send()
+//
+//        val reviewInfo = reviewInfoResult.getOrElse { throwable ->
+//            Napier.w(throwable) { "Failed to request in-app review." }
+//            return
+//        }
+//
+//        suspendRunCatching { reviewManager.launchReview(this, reviewInfo) }
+//            .onSuccess { ReviewsLog.reviewed().send() }
+//            .onFailure { throwable -> Napier.w(throwable) { "Failed to launch in-app review." } }
+//    }
 
     private fun refreshNativeAdInventory() {
         if (!viewModel.isAdsSdkInitialized.value) {

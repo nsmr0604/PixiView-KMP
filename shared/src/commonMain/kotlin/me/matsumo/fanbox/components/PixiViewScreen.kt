@@ -88,7 +88,8 @@ internal fun PixiViewScreen(
                     onComplete = {
                         isAgreedTeams = true
                         isAllowedPermission = true
-                        showPaywallFlag = true
+                        // 非公式ビルドでは起動時の Plus 誘導（ペイウォール）を表示しない
+//                        showPaywallFlag = true
 
                         onRequestUpdateState.invoke()
                     },
@@ -112,19 +113,21 @@ internal fun PixiViewScreen(
                     onLibraryHomeVisibilityChange = { isVisible -> isLibraryHomeVisible = isVisible },
                 )
 
-                HandleBillingRetentionPrompt(
-                    uiState = uiState,
-                    navigator = navigator,
-                    isHomeVisible = isLibraryHomeVisible && navigator.currentDestination == Destination.Library,
-                    onBillingRetentionPromptShow = onBillingRetentionPromptShow,
-                )
+                // 非公式ビルドでは解約阻止（継続提案）の表示を行わない
+//                HandleBillingRetentionPrompt(
+//                    uiState = uiState,
+//                    navigator = navigator,
+//                    isHomeVisible = isLibraryHomeVisible && navigator.currentDestination == Destination.Library,
+//                    onBillingRetentionPromptShow = onBillingRetentionPromptShow,
+//                )
 
-                if (showPaywallFlag) {
-                    LaunchedEffect(true) {
-                        navigator.navigate(Destination.BillingPlusBottomSheet(BillingReferrer.ONBOARDING))
-                        showPaywallFlag = false
-                    }
-                }
+                // 非公式ビルドでは起動時の Plus 誘導（ペイウォール）を表示しない
+//                if (showPaywallFlag) {
+//                    LaunchedEffect(true) {
+//                        navigator.navigate(Destination.BillingPlusBottomSheet(BillingReferrer.ONBOARDING))
+//                        showPaywallFlag = false
+//                    }
+//                }
             }
         }
     }

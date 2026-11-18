@@ -34,7 +34,8 @@ class AndroidApplicationPlugin : Plugin<Project> {
                 buildFeatures.viewBinding = true
 
                 defaultConfig {
-                    applicationId = "caios.android.fanbox"
+                    // 元のアプリと共存できるよう、非公式ビルド固有の identity を使う
+                    applicationId = "me.matsumo.fanbox.unofficial"
 
                     versionName = libs.version("versionName")
                     versionCode = libs.version("versionCode").toInt()

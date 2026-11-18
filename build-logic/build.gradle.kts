@@ -45,6 +45,10 @@ gradlePlugin {
             id = "pixiview.primitive.kmp.ios"
             implementationClass = "primitive.KmpIosPlugin"
         }
+        register("KmpJvmPlugin") {
+            id = "pixiview.primitive.kmp.jvm"
+            implementationClass = "primitive.KmpJvmPlugin"
+        }
         register("DetektPlugin") {
             id = "pixiview.primitive.detekt"
             implementationClass = "primitive.DetektPlugin"

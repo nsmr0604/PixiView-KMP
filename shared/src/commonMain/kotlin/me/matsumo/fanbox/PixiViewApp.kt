@@ -12,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.SideEffect
+// import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -34,8 +34,8 @@ import me.matsumo.fanbox.core.model.ThemeConfig
 import me.matsumo.fanbox.core.resources.Res
 import me.matsumo.fanbox.core.resources.guest_updating
 import me.matsumo.fanbox.core.ui.AsyncLoadContents
-import me.matsumo.fanbox.core.ui.ads.InterstitialAdState
-import me.matsumo.fanbox.core.ui.ads.rememberInterstitialAdState
+// import me.matsumo.fanbox.core.ui.ads.InterstitialAdState
+// import me.matsumo.fanbox.core.ui.ads.rememberInterstitialAdState
 import me.matsumo.fanbox.core.ui.component.PixiViewBackground
 import me.matsumo.fanbox.core.ui.extensition.LocalNavigationType
 import me.matsumo.fanbox.core.ui.extensition.NavigationType
@@ -88,17 +88,18 @@ fun PixiViewApp(
             loadingMessage = if (guestSource == GuestSource.Loading) stringResource(Res.string.guest_updating) else null,
             loadingMessageColor = if (shouldUseDarkTheme) DarkDefaultColorScheme.onSurfaceVariant else LightDefaultColorScheme.onSurfaceVariant,
         ) { uiState ->
-            val shouldLoadInterstitialAd = uiState.setting.shouldLoadInterstitialAd()
-            val interstitialAdState = rememberInterstitialAdState(
-                adUnitId = pixiViewConfig.interstitialAdUnitId,
-                enable = shouldLoadInterstitialAd,
-            )
-
-            SideEffect(shouldLoadInterstitialAd, interstitialAdState) {
-                if (shouldLoadInterstitialAd) {
-                    interstitialAdState.load()
-                }
-            }
+            // 非公式ビルドでは interstitial 広告を読み込まない
+//            val shouldLoadInterstitialAd = uiState.setting.shouldLoadInterstitialAd()
+//            val interstitialAdState = rememberInterstitialAdState(
+//                adUnitId = pixiViewConfig.interstitialAdUnitId,
+//                enable = shouldLoadInterstitialAd,
+//            )
+//
+//            SideEffect(shouldLoadInterstitialAd, interstitialAdState) {
+//                if (shouldLoadInterstitialAd) {
+//                    interstitialAdState.load()
+//                }
+//            }
 
             PixiViewTheme(
                 sessionId = uiState.sessionId,
@@ -119,10 +120,11 @@ fun PixiViewApp(
                         onRequestRelogin = viewModel::relogin,
                         onBillingRetentionPromptShow = viewModel::recordBillingRetentionPromptShown,
                         onPostDetailClose = {
-                            handlePostDetailClosedForInterstitialAd(
-                                viewModel = viewModel,
-                                interstitialAdState = interstitialAdState,
-                            )
+                            // 非公式ビルドでは投稿詳細を閉じても interstitial 広告を表示しない
+//                            handlePostDetailClosedForInterstitialAd(
+//                                viewModel = viewModel,
+//                                interstitialAdState = interstitialAdState,
+//                            )
                         },
                     )
 
@@ -178,22 +180,23 @@ fun PixiViewApp(
     }
 }
 
-private fun Setting.shouldLoadInterstitialAd(): Boolean = !hasPrivilege && shouldShowInterstitialAd
-
-private suspend fun handlePostDetailClosedForInterstitialAd(viewModel: PixiViewViewModel, interstitialAdState: InterstitialAdState) {
-    viewModel.onPostDetailClosedForInterstitialAd {
-        showInterstitialAdAndReload(interstitialAdState)
-    }
-}
-
-private suspend fun showInterstitialAdAndReload(interstitialAdState: InterstitialAdState): Boolean {
-    val wasShown = interstitialAdState.show()
-    if (wasShown) {
-        interstitialAdState.load()
-    }
-
-    return wasShown
-}
+// 非公式ビルドでは interstitial 広告を扱わない
+//private fun Setting.shouldLoadInterstitialAd(): Boolean = !hasPrivilege && shouldShowInterstitialAd
+//
+//private suspend fun handlePostDetailClosedForInterstitialAd(viewModel: PixiViewViewModel, interstitialAdState: InterstitialAdState) {
+//    viewModel.onPostDetailClosedForInterstitialAd {
+//        showInterstitialAdAndReload(interstitialAdState)
+//    }
+//}
+//
+//private suspend fun showInterstitialAdAndReload(interstitialAdState: InterstitialAdState): Boolean {
+//    val wasShown = interstitialAdState.show()
+//    if (wasShown) {
+//        interstitialAdState.load()
+//    }
+//
+//    return wasShown
+//}
 
 @ReadOnlyComposable
 @Composable

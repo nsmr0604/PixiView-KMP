@@ -33,28 +33,29 @@ class MainViewModel(
     val reviewRequest = _reviewRequest.receiveAsFlow()
 
     init {
-        viewModelScope.launch {
-            // 予約が増減するたびではなく、空から空でない状態に変わったときだけ判定する
-            downloadPostsRepository.reservingPosts
-                .map { reservingPosts -> reservingPosts.isNotEmpty() }
-                .distinctUntilChanged()
-                .filter { hasReservingPosts -> hasReservingPosts }
-                .collect { onDownloadReservationStarted() }
-        }
+        // 非公式ビルドではアプリ内レビュー（宣伝）を依頼しない
+//        viewModelScope.launch {
+//            // 予約が増減するたびではなく、空から空でない状態に変わったときだけ判定する
+//            downloadPostsRepository.reservingPosts
+//                .map { reservingPosts -> reservingPosts.isNotEmpty() }
+//                .distinctUntilChanged()
+//                .filter { hasReservingPosts -> hasReservingPosts }
+//                .collect { onDownloadReservationStarted() }
+//        }
     }
 
     fun setAdsSdkInitialized() {
         _isAdsSdkInitialized.value = true
     }
 
-    private suspend fun onDownloadReservationStarted() {
-        // 使い始めたばかりのユーザーには依頼しない
-        val isEligible = launchLogRepository.getLaunchCount() >= 3
-
-        ReviewsLog.tryRequestReview(isEligible).send()
-
-        if (isEligible) {
-            _reviewRequest.send(Unit)
-        }
-    }
+//    private suspend fun onDownloadReservationStarted() {
+//        // 使い始めたばかりのユーザーには依頼しない
+//        val isEligible = launchLogRepository.getLaunchCount() >= 3
+//
+//        ReviewsLog.tryRequestReview(isEligible).send()
+//
+//        if (isEligible) {
+//            _reviewRequest.send(Unit)
+//        }
+//    }
 }
