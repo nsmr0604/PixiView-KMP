@@ -40,6 +40,9 @@ kotlin {
 
         jvmMain.dependencies {
             api(libs.ktor.okhttp)
+
+            // Windows の標準フォルダ解決（SHGetKnownFolderPath）に使うネイティブブリッジ
+            implementation(libs.jna.platform)
         }
 
         iosMain.dependencies {
