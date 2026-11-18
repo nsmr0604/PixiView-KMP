@@ -2,6 +2,11 @@ name: Build Distribution
 
 on:
   workflow_dispatch:
+    inputs:
+      build-macos:
+        description: 'iOS / macOS ビルドも行う（macOS ランナーは利用枠を 10 倍消費する）'
+        type: boolean
+        default: true
   push:
     branches:
       - feat/unofficial-build
@@ -117,6 +122,9 @@ jobs:
 
   ios:
     name: iOS / iPadOS (IPA)
+    # macOS ランナーは利用枠を 10 倍で消費するため、手動実行時のみビルドする。
+    # push でのビルドは Linux / Windows ジョブだけで済ませる。
+    if: github.event_name == 'workflow_dispatch' && inputs.build-macos
     runs-on: macos-latest
     # アーカイブには Kotlin フレームワークのビルドと Firebase / AdMob の
     # SwiftPM 依存の解決・コンパイルが含まれ、30 分では収まらない。
@@ -241,11 +249,13 @@ jobs:
   # Windows / macOS / Linux の 3 プラットフォームをマトリクスでビルドし、
   # それぞれの OS に対応するインストーラー形式（msi/exe、dmg、deb/AppImage）を出す。
   # fankt fork は mavenLocal artifact から参照するため、認証情報は不要。
+  # macOS のみ手動実行時（build-macos=true）にビルドする（利用枠を 10 倍消費するため）。
   desktop:
     name: Desktop (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     needs: fankt-maven
+    if: matrix.name != 'macOS' || (github.event_name == 'workflow_dispatch' && inputs.build-macos)
 
     strategy:
       fail-fast: false
