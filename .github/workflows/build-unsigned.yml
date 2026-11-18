@@ -24,7 +24,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: nsmr0604/fankt
-          ref: main
+          # fankt 本体の main は upstream に追従させるため、JVM 対応は fork のブランチで管理する
+          ref: feat/jvm-target
 
       - name: Setup JDK
         uses: actions/setup-java@v4
