@@ -245,17 +245,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # PC 向け Compose Desktop ビルド（非公式）。
-  # Windows / macOS / Linux の 3 プラットフォームをマトリクスでビルドし、
-  # それぞれの OS に対応するインストーラー形式（msi/exe、dmg、deb/AppImage）を出す。
+  # PC 向け Compose Desktop ビルド（非公式）の Windows / Linux 分。
   # fankt fork は mavenLocal artifact から参照するため、認証情報は不要。
-  # macOS のみ手動実行時（build-macos=true）にビルドする（利用枠を 10 倍消費するため）。
+  # macOS 分は desktop-macos ジョブで別途ビルドする（job の if では matrix
+  # コンテキストが使えないため、OS ごとにジョブを分ける）。
   desktop:
     name: Desktop (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     needs: fankt-maven
-    if: matrix.name != 'macOS' || (github.event_name == 'workflow_dispatch' && inputs.build-macos)
 
     strategy:
       fail-fast: false
@@ -267,11 +265,6 @@ jobs:
             patterns: |
               desktopApp/build/compose/binaries/main/exe/*.exe
               desktopApp/build/compose/binaries/main/msi/*.msi
-          - os: macos-latest
-            name: macOS
-            artifact: PixiView-desktop-macos
-            patterns: |
-              desktopApp/build/compose/binaries/main/dmg/*.dmg
           - os: ubuntu-latest
             name: Linux
             artifact: PixiView-desktop-linux
@@ -321,5 +314,60 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.patterns }}
+          if-no-files-found: error
+          retention-days: 14
+
+  # PC 向け Compose Desktop ビルド（非公式）の macOS 分。
+  # macOS ランナーは利用枠を 10 倍で消費するため、手動実行時のみビルドする。
+  # push でのビルドは desktop ジョブ（Windows / Linux）だけで済ませる。
+  desktop-macos:
+    name: Desktop (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    needs: fankt-maven
+    if: github.event_name == 'workflow_dispatch' && inputs.build-macos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # download-artifact は path 直下にファイルを展開するため、~/.m2 の構造を再現する。
+      - name: Restore fankt mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: fankt-maven-local
+          path: ~/.m2/repository/me/matsumo
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Create local.properties
+        shell: bash
+        run: |
+          cat > local.properties <<'EOF'
+          # RevenueCat の起動クラッシュ対策のダミーキー。
+          PURCHASE_ANDROID_API_KEY=goog_dummy0000000000000000000000
+          # 開発モードの PIN。
+          DEVELOPER_PASSWORD=0000
+          EOF
+
+          base_version=$(grep -m1 '^versionName' gradle/libs.versions.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "VERSION_NAME=${base_version}+actions${GITHUB_RUN_NUMBER}-$(date +%Y%m%d)" >> "$GITHUB_ENV"
+
+      # packageDistributionForCurrentOS が実行環境の OS に対応するインストーラーをビルドする。
+      - name: Build desktop distribution
+        run: ./gradlew :desktopApp:packageDistributionForCurrentOS
+
+      - name: Upload desktop distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: PixiView-desktop-macos
+          path: desktopApp/build/compose/binaries/main/dmg/*.dmg
           if-no-files-found: error
           retention-days: 14
