@@ -26,6 +26,7 @@ import me.matsumo.fanbox.core.model.fanbox.PostDetail
 import me.matsumo.fanbox.core.model.fanbox.PostId
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.readText
 import kotlin.io.path.writeBytes
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.ExperimentalUuidApi
@@ -90,8 +91,10 @@ class DownloadPostsRepositoryImpl(
 
                 val results = data.awaitAll()
 
+                val saveDirName = resolveSaveDirName(downloadItems.requestType, downloadItems.postId)
+
                 for ((item, bytes) in results.filterNotNull()) {
-                    saveItem(item, downloadItems.requestType, bytes)
+                    saveItem(item, saveDirName, bytes)
                 }
             }
         }
@@ -150,7 +153,6 @@ class DownloadPostsRepositoryImpl(
     }
 
     override suspend fun getSaveDirectory(requestType: FanboxDownloadItems.RequestType): String = downloadRoot().toString()
-
     private fun PostDetail.ImageItem.toDownloadItem(): FanboxDownloadItems.Item = FanboxDownloadItems.Item(
         postId = postId,
         itemId = id,
@@ -207,11 +209,11 @@ class DownloadPostsRepositoryImpl(
 
     private fun saveItem(
         item: FanboxDownloadItems.Item,
-        requestType: FanboxDownloadItems.RequestType,
+        saveDirName: String,
         bytes: ByteArray,
     ) {
         runCatching {
-            val parentDir = downloadRoot().resolve(getParentDirName(requestType))
+            val parentDir = downloadRoot().resolve(saveDirName)
 
             Files.createDirectories(parentDir)
 
@@ -219,13 +221,52 @@ class DownloadPostsRepositoryImpl(
         }
     }
 
-    /** ダウンロードの保存先。ユーザーの Downloads 配下の FANBOX ディレクトリを使う。 */
-    private fun downloadRoot(): Path = Path.of(System.getProperty("user.home"), "Downloads", "FANBOX")
+    /** ダウンロードの保存先。プラットフォーム標準の画像フォルダ配下の FANBOX ディレクトリを使う。 */
+    private fun downloadRoot(): Path = picturesDirectory().resolve("FANBOX")
 
-    private fun getParentDirName(requestType: FanboxDownloadItems.RequestType?): String = when (requestType) {
-        is FanboxDownloadItems.RequestType.Image -> "images"
-        is FanboxDownloadItems.RequestType.File -> "files"
-        is FanboxDownloadItems.RequestType.WholePost -> requestType.post?.user?.name ?: "UnknownUser"
-        else -> "FANBOX"
+    /** 保存先のサブディレクトリ名。すべてのダウンロードをクリエイターごとのディレクトリにまとめる。 */
+    private suspend fun resolveSaveDirName(
+        requestType: FanboxDownloadItems.RequestType,
+        postId: PostId,
+    ): String = when (requestType) {
+        is FanboxDownloadItems.RequestType.Image, is FanboxDownloadItems.RequestType.File -> {
+            runCatching { fanboxRepository.getPostDetail(postId).user?.name }
+                .getOrDefault(null)
+                .sanitizeDirName()
+        }
+
+        is FanboxDownloadItems.RequestType.WholePost -> requestType.post?.user?.name.sanitizeDirName()
+    }
+
+    /** ファイルパスに使えない文字を置換する。Windows では末尾のドットと空白も無効。 */
+    private fun String?.sanitizeDirName(): String = this
+        ?.replace(Regex("""[\\/:*?"<>|]"""), "_")
+        ?.trimEnd('.', ' ')
+        ?.takeIf { it.isNotBlank() }
+        ?: "UnknownUser"
+
+    /** プラットフォーム標準の画像フォルダ。Windows/macOS は ~/Pictures、Linux は XDG 設定を優先する。 */
+    private fun picturesDirectory(): Path {
+        val home = Path.of(System.getProperty("user.home"))
+        val default = home.resolve("Pictures")
+
+        if (!System.getProperty("os.name").contains("Linux", ignoreCase = true)) {
+            return default
+        }
+
+        val userDirs = home.resolve(".config/user-dirs.dirs")
+
+        return runCatching {
+            val dir = userDirs.readText()
+                .lineSequence()
+                .firstOrNull { it.startsWith("XDG_PICTURES_DIR") }
+                ?.substringAfter('=')
+                ?.trim()
+                ?.trim('"')
+                ?.replaceFirst("\$HOME", home.toString())
+                ?.takeIf { it.isNotBlank() }
+
+            dir?.let { Path.of(it) }
+        }.getOrNull() ?: default
     }
 }
