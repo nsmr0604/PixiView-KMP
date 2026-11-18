@@ -208,6 +208,20 @@ class SettingDataStore(
         }
     }
 
+    suspend fun setSavePostBody(isSavePostBody: Boolean) = withContext(ioDispatcher) {
+        if (setting.first().isSavePostBody == isSavePostBody) return@withContext
+
+        SettingsLog.update(
+            propertyName = "isSavePostBody",
+            oldValue = setting.first().isSavePostBody.toString(),
+            newValue = isSavePostBody.toString(),
+        ).send()
+
+        settingPreference.edit {
+            it[booleanPreferencesKey(Setting::isSavePostBody.name)] = isSavePostBody
+        }
+    }
+
     suspend fun setFirstLaunchTime(time: Long) = withContext(ioDispatcher) {
         if (setting.first().firstLaunchTime == time) return@withContext
 

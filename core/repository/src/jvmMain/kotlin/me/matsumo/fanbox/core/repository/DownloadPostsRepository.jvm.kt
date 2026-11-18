@@ -23,11 +23,14 @@ import me.matsumo.fanbox.core.model.DownloadState
 import me.matsumo.fanbox.core.model.FanboxDownloadItems
 import me.matsumo.fanbox.core.model.fanbox.Post
 import me.matsumo.fanbox.core.model.fanbox.PostDetail
+import me.matsumo.fanbox.core.model.fanbox.PostDetail.Body
+import me.matsumo.fanbox.core.model.fanbox.PostDetail.Body.Article
 import me.matsumo.fanbox.core.model.fanbox.PostId
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.readText
 import kotlin.io.path.writeBytes
+import kotlin.io.path.writeText
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -59,15 +62,18 @@ class DownloadPostsRepositoryImpl(
                     continue
                 }
 
+                // クリエイター名の解決と本文の保存に使う投稿詳細。Image / File の一括ダウンロードでも取得する。
+                val postDetail = runCatching { fanboxRepository.getPostDetail(downloadItems.postId) }.getOrNull()
+
                 val items = when (val type = downloadItems.requestType) {
                     FanboxDownloadItems.RequestType.File -> downloadItems.items
 
                     FanboxDownloadItems.RequestType.Image -> downloadItems.items
 
                     is FanboxDownloadItems.RequestType.WholePost -> {
-                        val postDetail = fanboxRepository.getPostDetail(downloadItems.postId)
-                        val images = postDetail.body.imageItems.map { it.toDownloadItem() }
-                        val files = postDetail.body.fileItems.map { it.toDownloadItem() }
+                        val detail = checkNotNull(postDetail)
+                        val images = detail.body.imageItems.map { it.toDownloadItem() }
+                        val files = detail.body.fileItems.map { it.toDownloadItem() }
 
                         images + if (type.isIgnoreFiles) emptyList() else files
                     }
@@ -91,12 +97,14 @@ class DownloadPostsRepositoryImpl(
 
                 val results = data.awaitAll()
 
-                val saveDirName = resolveSaveDirName(downloadItems.requestType, downloadItems.postId)
+                val saveDirName = resolveSaveDirName(downloadItems.requestType, postDetail)
                 val postDirName = resolvePostDirName(downloadItems.postId, downloadItems.title)
 
                 for ((item, bytes) in results.filterNotNull()) {
                     saveItem(item, saveDirName, postDirName, bytes)
                 }
+
+                savePostBody(downloadItems.postId, postDetail, saveDirName, postDirName)
             }
         }
     }
@@ -231,18 +239,14 @@ class DownloadPostsRepositoryImpl(
     private fun downloadRoot(): Path = picturesDirectory().resolve("FANBOX")
 
     /** 保存先のサブディレクトリ名。すべてのダウンロードをクリエイターごとのディレクトリにまとめる。 */
-    private suspend fun resolveSaveDirName(
+    private fun resolveSaveDirName(
         requestType: FanboxDownloadItems.RequestType,
-        postId: PostId,
+        postDetail: PostDetail?,
     ): String = when (requestType) {
-        is FanboxDownloadItems.RequestType.Image, is FanboxDownloadItems.RequestType.File -> {
-            runCatching { fanboxRepository.getPostDetail(postId).user?.name }
-                .getOrDefault(null)
-                .sanitizeDirName()
-        }
+        is FanboxDownloadItems.RequestType.Image, is FanboxDownloadItems.RequestType.File -> postDetail?.user?.name
 
-        is FanboxDownloadItems.RequestType.WholePost -> requestType.post?.user?.name.sanitizeDirName()
-    }
+        is FanboxDownloadItems.RequestType.WholePost -> requestType.post?.user?.name ?: postDetail?.user?.name
+    }.sanitizeDirName()
 
     /** 投稿ごとのサブディレクトリ名。オプションが無効な場合は null を返す。 */
     private suspend fun resolvePostDirName(postId: PostId, title: String): String? {
@@ -250,6 +254,55 @@ class DownloadPostsRepositoryImpl(
 
         return "${postId.value}.$title".sanitizeDirName()
     }
+
+    /** 記事本文をテキストファイルとして保存する。オプションが無効か本文が空の場合は何もしない。 */
+    private fun savePostBody(
+        postId: PostId,
+        postDetail: PostDetail?,
+        saveDirName: String,
+        postDirName: String?,
+    ) {
+        val text = postDetail?.body?.toPlainText() ?: return
+        val fileName = if (postDirName != null) "本文.txt" else "${postId.value}.txt"
+
+        runCatching {
+            val parentDir = if (postDirName == null) {
+                downloadRoot().resolve(saveDirName)
+            } else {
+                downloadRoot().resolve(saveDirName).resolve(postDirName)
+            }
+
+            Files.createDirectories(parentDir)
+            parentDir.resolve(fileName).writeText(text)
+        }
+    }
+
+    /** 保存する本文テキストを組み立てる。テキストを持たない本文形式では null を返す。 */
+    private fun Body.toPlainText(): String? = when (this) {
+        is Article -> blocks.mapNotNull { block ->
+            when (block) {
+                is Article.Block.Text -> block.text
+
+                is Article.Block.Link -> block.url
+
+                is Article.Block.Embed -> block.url
+
+                else -> null
+            }
+        }.joinToString("\n\n")
+
+        is Body.Image -> text
+
+        is Body.File -> text
+
+        is Body.Text -> text
+
+        is Body.Video -> text
+
+        is Body.Html -> html
+
+        is Body.Unknown -> null
+    }.takeIf { !it.isNullOrBlank() }
 
     /** ファイルパスに使えない文字を置換する。Windows では末尾のドットと空白も無効。 */
     private fun String?.sanitizeDirName(): String = this

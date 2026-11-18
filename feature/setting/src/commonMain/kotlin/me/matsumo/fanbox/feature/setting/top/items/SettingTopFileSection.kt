@@ -14,8 +14,12 @@ import me.matsumo.fanbox.core.resources.setting_top_file_type
 import me.matsumo.fanbox.core.resources.setting_top_file_type_description
 import me.matsumo.fanbox.core.resources.setting_top_post_directory
 import me.matsumo.fanbox.core.resources.setting_top_post_directory_description
+import me.matsumo.fanbox.core.resources.setting_top_save_body
+import me.matsumo.fanbox.core.resources.setting_top_save_body_description
 import me.matsumo.fanbox.core.ui.component.SettingSwitchItem
 import me.matsumo.fanbox.core.ui.component.SettingTextItem
+import me.matsumo.fanbox.core.ui.extensition.Platform
+import me.matsumo.fanbox.core.ui.extensition.currentPlatform
 
 @Composable
 internal fun SettingTopFileSection(
@@ -23,6 +27,7 @@ internal fun SettingTopFileSection(
     onClickDirectory: () -> Unit,
     onClickDownloadFileType: (DownloadFileType) -> Unit,
     onClickUsePostIdDirectory: (Boolean) -> Unit,
+    onClickSavePostBody: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -55,5 +60,16 @@ internal fun SettingTopFileSection(
             value = setting.isUsePostIdDirectory,
             onValueChange = onClickUsePostIdDirectory,
         )
+
+        // 記事本文の保存はデスクトップ専用機能
+        if (currentPlatform == Platform.Desktop) {
+            SettingSwitchItem(
+                modifier = Modifier.fillMaxWidth(),
+                title = Res.string.setting_top_save_body,
+                description = Res.string.setting_top_save_body_description,
+                value = setting.isSavePostBody,
+                onValueChange = onClickSavePostBody,
+            )
+        }
     }
 }

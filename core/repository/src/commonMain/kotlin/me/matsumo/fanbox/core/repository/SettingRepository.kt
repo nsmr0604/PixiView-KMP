@@ -31,6 +31,7 @@ interface SettingRepository {
     suspend fun setFileSaveDirectory(directory: String)
     suspend fun setPostSaveDirectory(directory: String)
     suspend fun setUsePostIdDirectory(isUsePostIdDirectory: Boolean)
+    suspend fun setSavePostBody(isSavePostBody: Boolean)
     suspend fun setFirstLaunchTime(time: Long)
     suspend fun setUseDynamicColor(useDynamicColor: Boolean)
     suspend fun setUseAppLock(isAppLock: Boolean)
@@ -97,6 +98,10 @@ class SettingRepositoryImpl(private val settingDataStore: SettingDataStore) : Se
 
     override suspend fun setUsePostIdDirectory(isUsePostIdDirectory: Boolean) {
         settingDataStore.setUsePostIdDirectory(isUsePostIdDirectory)
+    }
+
+    override suspend fun setSavePostBody(isSavePostBody: Boolean) {
+        settingDataStore.setSavePostBody(isSavePostBody)
     }
 
     override suspend fun setFirstLaunchTime(time: Long) {

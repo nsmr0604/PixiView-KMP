@@ -129,6 +129,7 @@ internal fun SettingTopRoute(
             },
             onClickDownloadFileType = viewModel::setDownloadFileType,
             onClickUsePostIdDirectory = viewModel::setUsePostIdDirectory,
+            onClickSavePostBody = viewModel::setSavePostBody,
             onClickOpenSourceLicense = { navigateTo(Destination.SettingLicense) },
             onClickFollowTabDefaultHome = viewModel::setFollowTabDefaultHome,
             onClickHideAdultContents = viewModel::setHideAdultContents,
@@ -204,6 +205,7 @@ private fun SettingTopScreen(
     onClickDirectory: () -> Unit,
     onClickDownloadFileType: (DownloadFileType) -> Unit,
     onClickUsePostIdDirectory: (Boolean) -> Unit,
+    onClickSavePostBody: (Boolean) -> Unit,
     onClickNotifySetting: () -> Unit,
     onClickAppLock: (Boolean) -> Unit,
     onClickFollowTabDefaultHome: (Boolean) -> Unit,
@@ -278,6 +280,7 @@ private fun SettingTopScreen(
                     onClickDirectory = onClickDirectory,
                     onClickDownloadFileType = onClickDownloadFileType,
                     onClickUsePostIdDirectory = onClickUsePostIdDirectory,
+                    onClickSavePostBody = onClickSavePostBody,
                 )
             }
 

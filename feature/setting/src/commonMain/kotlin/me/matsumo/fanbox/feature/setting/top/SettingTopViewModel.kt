@@ -82,6 +82,12 @@ class SettingTopViewModel(
         }
     }
 
+    fun setSavePostBody(isSavePostBody: Boolean) {
+        viewModelScope.launch {
+            settingRepository.setSavePostBody(isSavePostBody)
+        }
+    }
+
     fun setFollowTabDefaultHome(isFollowTabDefaultHome: Boolean) {
         viewModelScope.launch {
             settingRepository.setFollowTabDefaultHome(isFollowTabDefaultHome)
