@@ -100,7 +100,13 @@ internal class DownloadPostsRepositoryImpl(
         downloadItems: FanboxDownloadItems,
         postDetail: PostDetail?,
         results: List<Pair<FanboxDownloadItems.Item, File>?>,
-    ) = fileSaver.save(downloadItems, results)
+    ) {
+        // Image / File の一括ダウンロードではクリエイター階層のために投稿詳細を取得する。
+        // コアは WholePost のときしか投稿詳細を渡さないため、ここで取得し直す。
+        val detail = postDetail ?: runCatching { fanboxRepository.getPostDetail(downloadItems.postId) }.getOrNull()
+
+        fileSaver.save(downloadItems, detail, results)
+    }
 
     override fun PostDetail.ImageItem.toDownloadItem(index: Int): FanboxDownloadItems.Item {
         val namePrefix = if (index >= 0) "image-%03d".format(Locale.ROOT, index) else "image"

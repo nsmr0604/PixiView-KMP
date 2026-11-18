@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import me.matsumo.fanbox.core.datastore.SettingDataStore
 import me.matsumo.fanbox.core.model.FanboxDownloadItems
+import me.matsumo.fanbox.core.model.fanbox.PostDetail
 import me.matsumo.fanbox.core.repository.download.DownloadDirectories
 import java.io.File
 import kotlin.coroutines.resume
@@ -42,14 +43,17 @@ internal class AndroidDownloadFileSaver(
     /** ダウンロード済みの一時ファイルを保存先へ書き込む。 */
     suspend fun save(
         downloadItems: FanboxDownloadItems,
+        postDetail: PostDetail?,
         results: List<Pair<FanboxDownloadItems.Item, File>?>,
     ) {
+        val creatorDirName = directories.creatorDirName(downloadItems.requestType, postDetail)
         val postDirName = directories.postDirName(downloadItems.postId, downloadItems.title)
 
         for ((item, tmpFile) in results.filterNotNull()) {
             runCatching {
                 val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(item.extension)
                 val selectedLocation = (getParentFile(downloadItems.requestType) ?: getOldParentFile(downloadItems.requestType))
+                    ?.let { it.createDirectory(creatorDirName) }
                     ?.let { if (postDirName != null) it.createDirectory(postDirName) else it }
                 val name = "${item.name}.${item.extension.ifBlank { "jpeg" }}"
 
@@ -59,7 +63,7 @@ internal class AndroidDownloadFileSaver(
                     }
 
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                        saveFileAfterSdkQ(name, tmpFile, mimeType, downloadItems.requestType, postDirName)
+                        saveFileAfterSdkQ(name, tmpFile, mimeType, downloadItems.requestType, creatorDirName, postDirName)
                     }
                 }
 
@@ -121,10 +125,11 @@ internal class AndroidDownloadFileSaver(
                 UniFile.fromUri(context, userData.fileSaveDirectory.toUri())
             }
 
+            // クリエイター階層は save 側で DownloadDirectories を通じて統一的に作るため、
+            // ここでは保存先ツリーそのものを返す。
             is FanboxDownloadItems.RequestType.WholePost -> {
                 if (userData.postSaveDirectory.isBlank()) return null
-                val parentFile = UniFile.fromUri(context, userData.postSaveDirectory.toUri())
-                parentFile.createDirectory(requestType.post?.user?.name ?: "UnknownCreator")
+                UniFile.fromUri(context, userData.postSaveDirectory.toUri())
             }
         }
     }
@@ -154,10 +159,11 @@ internal class AndroidDownloadFileSaver(
         tmpFile: File,
         mimeType: String?,
         requestType: FanboxDownloadItems.RequestType,
+        creatorDirName: String,
         postDirName: String?,
     ) = suspendCancellableCoroutine { continuation ->
         val basePath = getOldParentFile(requestType, true)?.filePath
-        val path = if (postDirName != null) "$basePath/$postDirName" else basePath
+        val path = listOfNotNull(basePath, creatorDirName, postDirName).joinToString("/")
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Images.Media.MIME_TYPE, mimeType)
