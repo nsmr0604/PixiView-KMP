@@ -12,6 +12,8 @@ import me.matsumo.fanbox.core.resources.setting_top_file_directory
 import me.matsumo.fanbox.core.resources.setting_top_file_directory_description
 import me.matsumo.fanbox.core.resources.setting_top_file_type
 import me.matsumo.fanbox.core.resources.setting_top_file_type_description
+import me.matsumo.fanbox.core.resources.setting_top_post_directory
+import me.matsumo.fanbox.core.resources.setting_top_post_directory_description
 import me.matsumo.fanbox.core.ui.component.SettingSwitchItem
 import me.matsumo.fanbox.core.ui.component.SettingTextItem
 
@@ -20,6 +22,7 @@ internal fun SettingTopFileSection(
     setting: Setting,
     onClickDirectory: () -> Unit,
     onClickDownloadFileType: (DownloadFileType) -> Unit,
+    onClickUsePostIdDirectory: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -43,6 +46,14 @@ internal fun SettingTopFileSection(
             onValueChange = {
                 onClickDownloadFileType.invoke(if (it) DownloadFileType.ORIGINAL else DownloadFileType.THUMBNAIL)
             },
+        )
+
+        SettingSwitchItem(
+            modifier = Modifier.fillMaxWidth(),
+            title = Res.string.setting_top_post_directory,
+            description = Res.string.setting_top_post_directory_description,
+            value = setting.isUsePostIdDirectory,
+            onValueChange = onClickUsePostIdDirectory,
         )
     }
 }

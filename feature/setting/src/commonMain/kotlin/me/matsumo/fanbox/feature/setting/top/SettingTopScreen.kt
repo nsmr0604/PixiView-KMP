@@ -128,6 +128,7 @@ internal fun SettingTopRoute(
                 navigatorExtension.navigateToWebPage("https://www.matsumo.me/application/pixiview/privacy_policy", "")
             },
             onClickDownloadFileType = viewModel::setDownloadFileType,
+            onClickUsePostIdDirectory = viewModel::setUsePostIdDirectory,
             onClickOpenSourceLicense = { navigateTo(Destination.SettingLicense) },
             onClickFollowTabDefaultHome = viewModel::setFollowTabDefaultHome,
             onClickHideAdultContents = viewModel::setHideAdultContents,
@@ -202,6 +203,7 @@ private fun SettingTopScreen(
     onClickAccountSetting: () -> Unit,
     onClickDirectory: () -> Unit,
     onClickDownloadFileType: (DownloadFileType) -> Unit,
+    onClickUsePostIdDirectory: (Boolean) -> Unit,
     onClickNotifySetting: () -> Unit,
     onClickAppLock: (Boolean) -> Unit,
     onClickFollowTabDefaultHome: (Boolean) -> Unit,
@@ -275,6 +277,7 @@ private fun SettingTopScreen(
                     setting = setting,
                     onClickDirectory = onClickDirectory,
                     onClickDownloadFileType = onClickDownloadFileType,
+                    onClickUsePostIdDirectory = onClickUsePostIdDirectory,
                 )
             }
 

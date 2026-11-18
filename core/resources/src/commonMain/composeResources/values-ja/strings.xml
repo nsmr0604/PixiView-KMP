@@ -291,6 +291,8 @@
     <string name="setting_top_file_directory_post">一括ダウンロードの保存先</string>
     <string name="setting_top_file_type">オリジナルサイズでダウンロードする</string>
     <string name="setting_top_file_type_description">画像を常にオリジナルサイズでダウンロードします。</string>
+    <string name="setting_top_post_directory">投稿ごとにフォルダーを作成する</string>
+    <string name="setting_top_post_directory_description">クリエイターフォルダーの下に【投稿ID.記事名】フォルダーを作成し、投稿ごとに画像などを保存します。</string>
     <string name="setting_account">アカウント</string>
     <string name="setting_account_title">アカウント設定</string>
     <string name="setting_account_description">アカウント名やアイコン変更などを行います。</string>

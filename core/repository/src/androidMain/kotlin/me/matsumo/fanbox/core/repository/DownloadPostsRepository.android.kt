@@ -183,6 +183,17 @@ class DownloadPostsRepositoryImpl(
         type = FanboxDownloadItems.Item.Type.File,
     )
 
+    /** 投稿ごとのサブディレクトリ名。オプションが無効な場合は null を返す。 */
+    private suspend fun resolvePostDirName(postId: PostId, title: String): String? {
+        if (!userDataStore.setting.first().isUsePostIdDirectory) return null
+
+        return "【${postId.value}.$title】"
+            .replace(Regex("""[\\/:*?"<>|]"""), "_")
+            .trimEnd('.', ' ')
+            .take(100)
+            .takeIf { it.isNotBlank() }
+    }
+
     private suspend fun downloadItem(item: FanboxDownloadItems.Item, onDownload: (Float) -> Unit): Pair<FanboxDownloadItems.Item, File>? = suspendRunCatching {
         val fileType = userDataStore.setting.first().downloadFileType
         val url = if (item.extension.lowercase() != "gif" || fileType == DownloadFileType.ORIGINAL) item.originalUrl else item.thumbnailUrl
@@ -280,10 +291,13 @@ class DownloadPostsRepositoryImpl(
     }
 
     private suspend fun saveFiles(downloadItems: FanboxDownloadItems, results: List<Pair<FanboxDownloadItems.Item, File>?>) {
+        val postDirName = resolvePostDirName(downloadItems.postId, downloadItems.title)
+
         for ((item, tmpFile) in results.filterNotNull()) {
             runCatching {
                 val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(item.extension)
-                val selectedLocation = getParentFile(downloadItems.requestType) ?: getOldParentFile(downloadItems.requestType)
+                val selectedLocation = (getParentFile(downloadItems.requestType) ?: getOldParentFile(downloadItems.requestType))
+                    ?.let { if (postDirName != null) it.createDirectory(postDirName) else it }
                 val name = "${item.name}.${item.extension.ifBlank { "jpeg" }}"
 
                 when {
@@ -292,7 +306,7 @@ class DownloadPostsRepositoryImpl(
                     }
 
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                        saveFileAfterSdkQ(name, tmpFile, mimeType, downloadItems.requestType)
+                        saveFileAfterSdkQ(name, tmpFile, mimeType, downloadItems.requestType, postDirName)
                     }
                 }
 
@@ -329,8 +343,10 @@ class DownloadPostsRepositoryImpl(
         tmpFile: File,
         mimeType: String?,
         requestType: FanboxDownloadItems.RequestType,
+        postDirName: String?,
     ) = suspendCancellableCoroutine { continuation ->
-        val path = getOldParentFile(requestType, true)?.filePath
+        val basePath = getOldParentFile(requestType, true)?.filePath
+        val path = if (postDirName != null) "$basePath/$postDirName" else basePath
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Images.Media.MIME_TYPE, mimeType)

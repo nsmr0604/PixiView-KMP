@@ -101,8 +101,10 @@ class DownloadPostsRepositoryImpl(
 
                 val results = data.awaitAll()
 
+                val postDirName = resolvePostDirName(downloadItems.postId, downloadItems.title)
+
                 for ((item, bytes) in results.filterNotNull()) {
-                    saveItem(item, downloadItems.requestType, bytes)
+                    saveItem(item, downloadItems.requestType, postDirName, bytes)
                 }
             }
         }
@@ -220,6 +222,7 @@ class DownloadPostsRepositoryImpl(
     private fun saveItem(
         item: FanboxDownloadItems.Item,
         requestType: FanboxDownloadItems.RequestType,
+        postDirName: String?,
         bytes: ByteArray,
     ) {
         runCatching {
@@ -232,7 +235,12 @@ class DownloadPostsRepositoryImpl(
                 }
 
                 FanboxDownloadItems.Item.Type.File -> {
-                    val path = NSHomeDirectory() + "/Documents/FANBOX/${getParentDirName(requestType)}"
+                    var path = NSHomeDirectory() + "/Documents/FANBOX/${getParentDirName(requestType)}"
+
+                    if (postDirName != null) {
+                        path += "/$postDirName"
+                    }
+
                     val nsData = memScoped { NSData.create(bytes = allocArrayOf(bytes), length = bytes.size.toULong()) }
                     val fileManager = NSFileManager.defaultManager
 
@@ -247,6 +255,17 @@ class DownloadPostsRepositoryImpl(
                 }
             }
         }
+    }
+
+    /** 投稿ごとのサブディレクトリ名。オプションが無効な場合は null を返す。 */
+    private suspend fun resolvePostDirName(postId: PostId, title: String): String? {
+        if (!userDataStore.setting.first().isUsePostIdDirectory) return null
+
+        return "【${postId.value}.$title】"
+            .replace(Regex("""[\\/:*?"<>|]"""), "_")
+            .trimEnd('.', ' ')
+            .take(100)
+            .takeIf { it.isNotBlank() }
     }
 
     private fun getParentDirName(requestType: FanboxDownloadItems.RequestType?): String = when (requestType) {

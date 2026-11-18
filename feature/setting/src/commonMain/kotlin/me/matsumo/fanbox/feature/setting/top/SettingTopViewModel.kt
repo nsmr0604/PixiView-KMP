@@ -76,6 +76,12 @@ class SettingTopViewModel(
         }
     }
 
+    fun setUsePostIdDirectory(isUsePostIdDirectory: Boolean) {
+        viewModelScope.launch {
+            settingRepository.setUsePostIdDirectory(isUsePostIdDirectory)
+        }
+    }
+
     fun setFollowTabDefaultHome(isFollowTabDefaultHome: Boolean) {
         viewModelScope.launch {
             settingRepository.setFollowTabDefaultHome(isFollowTabDefaultHome)

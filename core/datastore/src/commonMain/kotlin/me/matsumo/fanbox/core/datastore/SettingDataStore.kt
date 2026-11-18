@@ -194,6 +194,20 @@ class SettingDataStore(
         }
     }
 
+    suspend fun setUsePostIdDirectory(isUsePostIdDirectory: Boolean) = withContext(ioDispatcher) {
+        if (setting.first().isUsePostIdDirectory == isUsePostIdDirectory) return@withContext
+
+        SettingsLog.update(
+            propertyName = "isUsePostIdDirectory",
+            oldValue = setting.first().isUsePostIdDirectory.toString(),
+            newValue = isUsePostIdDirectory.toString(),
+        ).send()
+
+        settingPreference.edit {
+            it[booleanPreferencesKey(Setting::isUsePostIdDirectory.name)] = isUsePostIdDirectory
+        }
+    }
+
     suspend fun setFirstLaunchTime(time: Long) = withContext(ioDispatcher) {
         if (setting.first().firstLaunchTime == time) return@withContext
 

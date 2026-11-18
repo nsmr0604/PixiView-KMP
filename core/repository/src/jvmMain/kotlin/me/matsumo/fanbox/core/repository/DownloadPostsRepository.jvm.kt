@@ -92,9 +92,10 @@ class DownloadPostsRepositoryImpl(
                 val results = data.awaitAll()
 
                 val saveDirName = resolveSaveDirName(downloadItems.requestType, downloadItems.postId)
+                val postDirName = resolvePostDirName(downloadItems.postId, downloadItems.title)
 
                 for ((item, bytes) in results.filterNotNull()) {
-                    saveItem(item, saveDirName, bytes)
+                    saveItem(item, saveDirName, postDirName, bytes)
                 }
             }
         }
@@ -210,10 +211,15 @@ class DownloadPostsRepositoryImpl(
     private fun saveItem(
         item: FanboxDownloadItems.Item,
         saveDirName: String,
+        postDirName: String?,
         bytes: ByteArray,
     ) {
         runCatching {
-            val parentDir = downloadRoot().resolve(saveDirName)
+            val parentDir = if (postDirName == null) {
+                downloadRoot().resolve(saveDirName)
+            } else {
+                downloadRoot().resolve(saveDirName).resolve(postDirName)
+            }
 
             Files.createDirectories(parentDir)
 
@@ -238,11 +244,19 @@ class DownloadPostsRepositoryImpl(
         is FanboxDownloadItems.RequestType.WholePost -> requestType.post?.user?.name.sanitizeDirName()
     }
 
+    /** 投稿ごとのサブディレクトリ名。オプションが無効な場合は null を返す。 */
+    private suspend fun resolvePostDirName(postId: PostId, title: String): String? {
+        if (!userDataStore.setting.first().isUsePostIdDirectory) return null
+
+        return "【${postId.value}.$title】".sanitizeDirName()
+    }
+
     /** ファイルパスに使えない文字を置換する。Windows では末尾のドットと空白も無効。 */
     private fun String?.sanitizeDirName(): String = this
         ?.replace(Regex("""[\\/:*?"<>|]"""), "_")
         ?.trimEnd('.', ' ')
         ?.takeIf { it.isNotBlank() }
+        ?.take(100)
         ?: "UnknownUser"
 
     /** プラットフォーム標準の画像フォルダ。Windows/macOS は ~/Pictures、Linux は XDG 設定を優先する。 */
