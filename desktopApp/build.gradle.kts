@@ -46,6 +46,25 @@ compose.desktop {
         mainClass = "me.matsumo.fanbox.desktop.MainKt"
 
         nativeDistributions {
+            // jpackage のランタイム画像に含める JDK モジュール。既定は 7 個のみで、
+            // jdk.unsupported が含まれない。datastore が同梱する protobuf lite は
+            // sun.misc.Unsafe (jdk.unsupported) を使うため、無いと起動直後に
+            // 「Lite gencode is primarily intended for Android use...」でクラッシュする
+            // (2026-11-18 実機実測)。java.sql は Room の JDBC ドライバーが使う。
+            // jdeps は multi-release jar のモジュール解決に失敗して使えないため、
+            // 実機検証で不足分を確認して足す運用にする。
+            modules(
+                "java.base",
+                "java.datatransfer",
+                "java.xml",
+                "java.prefs",
+                "java.desktop",
+                "java.logging",
+                "jdk.crypto.ec",
+                "jdk.unsupported",
+                "java.sql",
+            )
+
             // 配布は実行ファイル形式。packageDistributionForCurrentOS が
             // 実行環境の OS に対応するフォーマットだけをビルドする。
             // Windows: msi / exe、macOS: dmg、Linux: deb / AppImage
@@ -59,7 +78,14 @@ compose.desktop {
 
             // 非公式ビルドであることを明示する（pixiv API 側の identity とは無関係）。
             packageName = "PixiView-unofficial"
-            packageVersion = "1.0.0"
+
+            // MSI (WiX) のバージョン比較は先頭 3 成分のみで、同一バージョンの
+            // 再インストールは 1638「別バージョンが既にインストール済み」で弾かれる。
+            // ビルドごとに増える番号を第 3 成分に載せる (CI は run 番号、ローカルは 0)。
+            // ローカルビルド同士の上書きは先にアンインストールする前提。
+            val baseVersion = libs.versions.versionName.get()
+            val buildSeq = 1000 + (System.getenv("GITHUB_RUN_NUMBER")?.toInt() ?: 0)
+            packageVersion = baseVersion.split(".").take(2).joinToString(".") + "." + buildSeq
         }
     }
 }
