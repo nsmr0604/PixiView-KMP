@@ -97,8 +97,11 @@ internal fun WelcomeWebScreen(
     webViewState.webSettings.apply {
         isJavaScriptEnabled = true
 
-        // WebView の素の UA は旧式に見え、pixiv のログインや Cloudflare のクライアント検査に
-        // 弾かれうるため、現行の Chrome モバイルを装う。バージョンはときどき現行の安定版へ更新する。
+        // WebView の素の UA は旧式に見え、pixiv のログインや Cloudflare / reCAPTCHA の
+        // クライアント検査に弾かれ、ログインフォームからの認証が失敗する。
+        // Desktop の KCEF でも createModifiedRequestContext が customUserAgentString を
+        // リクエストの User-Agent へ反映するため、全プラットフォームで現行 Chrome を装う。
+        // バージョンはときどき現行の安定版へ更新する。
         customUserAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36"
 
         androidWebSettings.apply {
@@ -142,7 +145,13 @@ internal fun WelcomeWebScreen(
 
         if (!shouldCheck) return
 
-        val trigger = if (url == fanboxRedirectUrl) LoginCheckTrigger.Redirect else LoginCheckTrigger.FanboxPage
+        // 公式のログイン処理の完了地点 (/auth/callback で FANBOXSESSID が発行される) を
+        // 他の FANBOX ページと区別して記録する。
+        val trigger = when {
+            url == fanboxRedirectUrl -> LoginCheckTrigger.Redirect
+            url?.isFanboxAuthCallback() == true -> LoginCheckTrigger.AuthCallback
+            else -> LoginCheckTrigger.FanboxPage
+        }
 
         // Cookie の値は認証情報そのものであり、logcat に残すと他経路から読み取られうるため出力しない。
         Napier.d { "try login. current url: $url, cookies: ${currentCookies.map { it.name }}" }
