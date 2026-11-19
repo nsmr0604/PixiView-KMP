@@ -54,11 +54,50 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # compose-webview-multiplatform fork（CookieManager 修正版 2.0.4）をビルドして
+  # ~/.m2 に publish し、後続ジョブへ artifact 経由で配る。
+  # 修正は upstream の PR #398 で main にマージ済みだが Maven Central 未公開のため、
+  # 自前で publish して mavenLocal から解決する。
+  webview-maven:
+    name: compose-webview-multiplatform (mavenLocal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout webview fork
+        uses: actions/checkout@v4
+        with:
+          repository: nsmr0604/compose-webview-multiplatform
+          # upstream main は変更せず、ビルド調整は fork のブランチで管理する
+          ref: feat/cookie-manager-fix
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # javadoc / sources も mavenLocal に必要なため publishToMavenLocal を使う。
+      # Linux では iOS ターゲットは無効化されるが、Android / desktop / wasm-js は publish される。
+      - name: Publish webview to mavenLocal
+        run: ./gradlew :webview:publishToMavenLocal
+
+      - name: Upload mavenLocal artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: webview-maven-local
+          path: ~/.m2/repository/io/github/kevinnzou
+          if-no-files-found: error
+          retention-days: 1
+
   android:
     name: Android (APK)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: fankt-maven
+    needs: [fankt-maven, webview-maven]
 
     steps:
       - name: Checkout
@@ -69,6 +108,12 @@ jobs:
         with:
           name: fankt-maven-local
           path: ~/.m2/repository/me/matsumo
+
+      - name: Restore webview mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: webview-maven-local
+          path: ~/.m2/repository/io/github/kevinnzou
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -129,7 +174,7 @@ jobs:
     # アーカイブには Kotlin フレームワークのビルドと Firebase / AdMob の
     # SwiftPM 依存の解決・コンパイルが含まれ、30 分では収まらない。
     timeout-minutes: 90
-    needs: fankt-maven
+    needs: [fankt-maven, webview-maven]
 
     steps:
       - name: Checkout
@@ -140,6 +185,12 @@ jobs:
         with:
           name: fankt-maven-local
           path: ~/.m2/repository/me/matsumo
+
+      - name: Restore webview mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: webview-maven-local
+          path: ~/.m2/repository/io/github/kevinnzou
 
       # SwiftPM の依存パッケージをキャッシュして、毎回の再取得とネットワーク頼みの
       # 解決を減らす。
@@ -253,7 +304,7 @@ jobs:
     name: Desktop (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    needs: fankt-maven
+    needs: [fankt-maven, webview-maven]
 
     strategy:
       fail-fast: false
@@ -282,6 +333,12 @@ jobs:
         with:
           name: fankt-maven-local
           path: ~/.m2/repository/me/matsumo
+
+      - name: Restore webview mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: webview-maven-local
+          path: ~/.m2/repository/io/github/kevinnzou
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -324,7 +381,7 @@ jobs:
     name: Desktop (macOS)
     runs-on: macos-latest
     timeout-minutes: 60
-    needs: fankt-maven
+    needs: [fankt-maven, webview-maven]
     if: github.event_name == 'workflow_dispatch' && inputs.build-macos
 
     steps:
@@ -337,6 +394,12 @@ jobs:
         with:
           name: fankt-maven-local
           path: ~/.m2/repository/me/matsumo
+
+      - name: Restore webview mavenLocal artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: webview-maven-local
+          path: ~/.m2/repository/io/github/kevinnzou
 
       - name: Setup JDK
         uses: actions/setup-java@v4
