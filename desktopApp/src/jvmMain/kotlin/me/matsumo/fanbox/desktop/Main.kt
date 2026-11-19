@@ -34,6 +34,11 @@ fun main() {
                 installDir(
                     File(System.getProperty("user.home")).resolve(".pixiview-desktop").resolve("kcef"),
                 )
+                // WebView の UA をグローバルに装う。WebSettings.customUserAgentString は
+                // カスタム RequestContext を作って Cookie を分離するため、ここで設定する。
+                settings {
+                    userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36"
+                }
                 progress {
                     onDownloading { progress -> println("[KCEF] downloading: $progress") }
                     onInitializing { println("[KCEF] initializing") }

@@ -99,9 +99,9 @@ internal fun WelcomeWebScreen(
 
         // WebView の素の UA は旧式に見え、pixiv のログインや Cloudflare / reCAPTCHA の
         // クライアント検査に弾かれ、ログインフォームからの認証が失敗する。
-        // Desktop の KCEF でも createModifiedRequestContext が customUserAgentString を
-        // リクエストの User-Agent へ反映するため、全プラットフォームで現行 Chrome を装う。
-        // バージョンはときどき現行の安定版へ更新する。
+        // 全プラットフォームで現行 Chrome を装う。バージョンはときどき現行の安定版へ更新する。
+        // Desktop はこの設定がカスタム RequestContext を作って Cookie を分離してしまうため、
+        // 自前 factory で requestContext を渡さず、KCEF 起動時のグローバル UA で装う。
         customUserAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36"
 
         androidWebSettings.apply {
@@ -219,6 +219,7 @@ internal fun WelcomeWebScreen(
             WebView(
                 modifier = Modifier.fillMaxSize(),
                 state = webViewState,
+                factory = webLoginWebViewFactory(),
             )
 
             (webViewState.loadingState as? LoadingState.Loading)?.also {

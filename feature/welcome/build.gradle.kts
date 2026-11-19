@@ -32,6 +32,11 @@ kotlin {
             implementation(libs.webview.compose)
         }
 
+        jvmMain.dependencies {
+            // 自前 factory で KCEFBrowser を生成するため、Desktop 側で明示的に参照する
+            implementation(libs.kcef)
+        }
+
         val androidHostTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
