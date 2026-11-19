@@ -13,6 +13,9 @@ internal enum class LoginCheckTrigger(val method: String, val logName: String) {
     /** WebView で、`return_to` に渡した URL を開いた。 */
     Redirect("web", "redirect"),
 
+    /** WebView で、FANBOX の OAuth コールバック (`/auth/callback`) を開いた。公式のログイン処理ではここで FANBOXSESSID が発行される。 */
+    AuthCallback("web", "auth_callback"),
+
     /** WebView で、`return_to` 以外の FANBOX のページを開いた。 */
     FanboxPage("web", "fanbox_page"),
 

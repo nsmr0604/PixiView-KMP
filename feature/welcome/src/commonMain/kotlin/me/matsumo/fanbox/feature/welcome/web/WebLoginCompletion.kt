@@ -90,3 +90,17 @@ private fun String.isFanboxPageAfterLogin(): Boolean {
 
     return isFanboxHost && !path.startsWith("/login")
 }
+
+/**
+ * FANBOX の OAuth コールバック (`/auth/callback`) かどうか。
+ *
+ * 公式のログイン処理では、pixiv アカウントでの認証のあとにこの URL へ認可コードが届き、
+ * ここで FANBOXSESSID が発行される。ログイン処理の完了地点として扱う。
+ */
+internal fun String.isFanboxAuthCallback(): Boolean {
+    val host = urlHost() ?: return false
+    val path = removePrefix("https://").removePrefix(host).substringBefore('?')
+    val isFanboxHost = host == "fanbox.cc" || host.endsWith(".fanbox.cc")
+
+    return isFanboxHost && (path == "/auth/callback" || path.startsWith("/auth/callback/"))
+}

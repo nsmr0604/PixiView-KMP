@@ -52,6 +52,23 @@ class WebLoginCompletionTest {
     }
 
     @Test
+    fun authCallbackIsDetected() {
+        assertTrue("https://www.fanbox.cc/auth/callback?code=x&state=y".isFanboxAuthCallback())
+        assertTrue("https://fanbox.cc/auth/callback?code=x".isFanboxAuthCallback())
+        assertTrue("https://www.fanbox.cc/auth/callback/sub?code=x".isFanboxAuthCallback())
+        assertFalse("https://www.fanbox.cc/auth/callback-elsewhere?code=x".isFanboxAuthCallback())
+        assertFalse("https://www.fanbox.cc/auth/start".isFanboxAuthCallback())
+        assertFalse("https://accounts.pixiv.net/auth/callback?code=x".isFanboxAuthCallback())
+        assertFalse("https://www.fanbox.cc/".isFanboxAuthCallback())
+        assertFalse("https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback?code=x".isFanboxAuthCallback())
+    }
+
+    @Test
+    fun authCallbackIsCheckedLikeOtherFanboxPages() {
+        assertTrue(shouldCheck(url = "https://www.fanbox.cc/auth/callback?code=x&state=y"))
+    }
+
+    @Test
     fun loginPageAndNonFanboxPagesAreNotChecked() {
         assertFalse(shouldCheck(url = "https://www.fanbox.cc/login?return_to=$redirectUrl"))
         assertFalse(shouldCheck(url = "https://accounts.pixiv.net/login"))
