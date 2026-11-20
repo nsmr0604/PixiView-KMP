@@ -35,7 +35,7 @@ class AndroidApplicationPlugin : Plugin<Project> {
 
                 defaultConfig {
                     // 元のアプリと共存できるよう、非公式ビルド固有の identity を使う
-                    applicationId = "me.matsumo.fanbox.unofficial"
+                    applicationId = "com.nsmr0604.fanboxview"
 
                     versionName = libs.version("versionName")
                     versionCode = libs.version("versionCode").toInt()
